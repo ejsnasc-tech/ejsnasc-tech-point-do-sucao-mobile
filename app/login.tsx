@@ -33,6 +33,22 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function getPhoneDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = getPhoneDigits(value);
+  return digits.length === 10 || digits.length === 11;
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
@@ -72,8 +88,8 @@ export default function LoginScreen() {
       Alert.alert("Atenção", "Por favor, informe seu nome.");
       return;
     }
-    if (!telefone.trim()) {
-      Alert.alert("Atenção", "Por favor, informe seu telefone.");
+    if (!isValidPhone(telefone)) {
+      Alert.alert("Atenção", "Informe um telefone válido com DDD. Ex: (79) 99988-7188");
       return;
     }
     if (!email.trim() || !isValidEmail(email)) {
@@ -93,7 +109,7 @@ export default function LoginScreen() {
       // Step 1: Send verification code
       setIsSubmitting(true);
       try {
-        await sendVerificationCode(telefone.trim());
+        await sendVerificationCode(getPhoneDigits(telefone));
         setVerificationStep(true);
         startResendCooldown();
         Alert.alert("Código enviado", "Um código de verificação foi enviado para seu telefone.");
@@ -115,7 +131,7 @@ export default function LoginScreen() {
     try {
       await registerUser({
         cliente_nome: nome.trim(),
-        cliente_telefone: telefone.trim(),
+        cliente_telefone: getPhoneDigits(telefone),
         email: email.trim().toLowerCase(),
         password: senha,
         rua: rua.trim() || undefined,
@@ -128,7 +144,7 @@ export default function LoginScreen() {
 
       await login({
         nome: nome.trim(),
-        telefone: telefone.trim(),
+        telefone: getPhoneDigits(telefone),
         email: email.trim().toLowerCase(),
         rua: rua.trim() || undefined,
         numero: numero.trim() || undefined,
@@ -162,7 +178,7 @@ export default function LoginScreen() {
     if (resendCooldown > 0) return;
     setIsSubmitting(true);
     try {
-      await sendVerificationCode(telefone.trim());
+      await sendVerificationCode(getPhoneDigits(telefone));
       startResendCooldown();
       Alert.alert("Código reenviado", "Um novo código foi enviado para seu telefone.");
     } catch {
@@ -324,15 +340,26 @@ export default function LoginScreen() {
             returnKeyType="next"
           />
 
-          <Text style={styles.label}>Telefone</Text>
+          <Text style={styles.label}>Telefone (com DDD)</Text>
           <TextInput
-            style={styles.input}
-            placeholder="(11) 99999-9999"
+            style={[
+              styles.input,
+              telefone.length > 0 && !isValidPhone(telefone) && styles.inputError,
+              telefone.length > 0 && isValidPhone(telefone) && styles.inputSuccess,
+            ]}
+            placeholder="(79) 99988-7188"
             value={telefone}
-            onChangeText={setTelefone}
+            onChangeText={(text) => setTelefone(formatPhone(text))}
             keyboardType="phone-pad"
+            maxLength={15}
             returnKeyType="next"
           />
+          {telefone.length > 0 && !isValidPhone(telefone) && (
+            <Text style={styles.errorHint}>Informe DDD + número (10 ou 11 dígitos)</Text>
+          )}
+          {telefone.length > 0 && isValidPhone(telefone) && (
+            <Text style={styles.successHint}>✓ Telefone válido</Text>
+          )}
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -582,6 +609,10 @@ const styles = StyleSheet.create({
     borderColor: BRAND_COLOR,
     backgroundColor: "#fff0f0",
   },
+  inputSuccess: {
+    borderColor: "#28a745",
+    backgroundColor: "#f0fff4",
+  },
   inputSpacing: {
     marginTop: 10,
   },
@@ -589,6 +620,12 @@ const styles = StyleSheet.create({
     color: BRAND_COLOR,
     fontSize: 12,
     marginTop: 4,
+  },
+  successHint: {
+    color: "#155724",
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
   },
   strengthHint: {
     fontSize: 12,
