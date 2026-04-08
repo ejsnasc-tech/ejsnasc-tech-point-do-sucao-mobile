@@ -1,0 +1,326 @@
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Switch,
+} from "react-native";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCart } from "@/hooks/useCart";
+import { createPedido } from "@/lib/api";
+import { BRAND_COLOR } from "@/constants/categories";
+
+const CLIENTE_KEY = "@pointdosucao:cliente_info";
+
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export default function CheckoutScreen() {
+  const router = useRouter();
+  const { cart, total, clearCart } = useCart();
+
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [isRetirada, setIsRetirada] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = useCallback(async () => {
+    if (!nome.trim()) {
+      Alert.alert("Atenção", "Por favor, informe seu nome.");
+      return;
+    }
+    if (!telefone.trim()) {
+      Alert.alert("Atenção", "Por favor, informe seu telefone.");
+      return;
+    }
+    if (!isRetirada && !endereco.trim()) {
+      Alert.alert("Atenção", "Por favor, informe seu endereço para entrega.");
+      return;
+    }
+    if (cart.length === 0) {
+      Alert.alert("Atenção", "Seu carrinho está vazio.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        cliente_nome: nome.trim(),
+        cliente_telefone: telefone.trim(),
+        cliente_endereco: isRetirada ? undefined : endereco.trim(),
+        tipo_entrega: isRetirada ? ("retirada" as const) : ("entrega" as const),
+        total,
+        itens: cart.map((item) => ({
+          produto_id: item.id,
+          nome: item.nome,
+          qtde: item.qtde,
+          preco_unitario: item.preco,
+        })),
+      };
+
+      await createPedido(payload);
+
+      await AsyncStorage.setItem(
+        CLIENTE_KEY,
+        JSON.stringify({ cliente_telefone: telefone.trim() })
+      );
+
+      await clearCart();
+
+      Alert.alert(
+        "Pedido realizado! 🎉",
+        "Seu pedido foi enviado com sucesso. Acompanhe o status na aba Pedidos.",
+        [
+          {
+            text: "Ver Pedidos",
+            onPress: () => {
+              router.dismiss();
+              router.push("/(tabs)/pedidos");
+            },
+          },
+        ]
+      );
+    } catch {
+      Alert.alert(
+        "Erro",
+        "Não foi possível enviar seu pedido. Verifique sua conexão e tente novamente."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [nome, telefone, endereco, isRetirada, cart, total, clearCart, router]);
+
+  if (cart.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>Seu carrinho está vazio.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.sectionTitle}>Resumo do Pedido</Text>
+      <View style={styles.card}>
+        {cart.map((item) => (
+          <View key={item.id} style={styles.itemRow}>
+            <Text style={styles.itemQtde}>{item.qtde}x</Text>
+            <Text style={styles.itemNome} numberOfLines={1}>
+              {item.nome}
+            </Text>
+            <Text style={styles.itemPreco}>
+              {formatBRL(item.preco * item.qtde)}
+            </Text>
+          </View>
+        ))}
+        <View style={styles.divider} />
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>{formatBRL(total)}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Seus dados</Text>
+      <View style={styles.card}>
+        <Text style={styles.label}>Nome *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Seu nome completo"
+          value={nome}
+          onChangeText={setNome}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+
+        <Text style={styles.label}>Telefone (WhatsApp) *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="(00) 00000-0000"
+          value={telefone}
+          onChangeText={setTelefone}
+          keyboardType="phone-pad"
+          returnKeyType="next"
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Entrega</Text>
+      <View style={styles.card}>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Retirar no local</Text>
+          <Switch
+            value={isRetirada}
+            onValueChange={setIsRetirada}
+            trackColor={{ true: BRAND_COLOR }}
+            thumbColor={isRetirada ? "#fff" : "#f4f4f4"}
+          />
+        </View>
+
+        {!isRetirada && (
+          <>
+            <Text style={styles.label}>Endereço de entrega *</Text>
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              placeholder="Rua, número, bairro, referência..."
+              value={endereco}
+              onChangeText={setEndereco}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              autoCapitalize="sentences"
+            />
+          </>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+        activeOpacity={0.85}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitButtonText}>Fazer Pedido 🛒</Text>
+        )}
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f8f8",
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#666",
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  itemQtde: {
+    fontSize: 14,
+    color: BRAND_COLOR,
+    fontWeight: "600",
+    width: 28,
+  },
+  itemNome: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+  },
+  itemPreco: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f0f0f0",
+    marginVertical: 10,
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  totalValue: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: BRAND_COLOR,
+  },
+  label: {
+    fontSize: 13,
+    color: "#555",
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#1a1a1a",
+    backgroundColor: "#fafafa",
+  },
+  inputMultiline: {
+    height: 80,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  switchLabel: {
+    fontSize: 15,
+    color: "#1a1a1a",
+  },
+  submitButton: {
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 24,
+    elevation: 3,
+    shadowColor: BRAND_COLOR,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+});
