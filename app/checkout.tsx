@@ -11,12 +11,10 @@ import {
   Switch,
 } from "react-native";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import { createPedido } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
-
-const CLIENTE_KEY = "@pointdosucao:cliente_info";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -25,10 +23,12 @@ function formatBRL(value: number): string {
 export default function CheckoutScreen() {
   const router = useRouter();
   const { cart, total, clearCart } = useCart();
+  const { user } = useAuth();
 
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [endereco, setEndereco] = useState("");
+  const [nome, setNome] = useState(user?.nome ?? "");
+  const [telefone, setTelefone] = useState(user?.telefone ?? "");
+  const userEndereco = [user?.rua, user?.numero, user?.bairro].filter(Boolean).join(", ");
+  const [endereco, setEndereco] = useState(userEndereco);
   const [isRetirada, setIsRetirada] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,12 +67,6 @@ export default function CheckoutScreen() {
       };
 
       await createPedido(payload);
-
-      await AsyncStorage.setItem(
-        CLIENTE_KEY,
-        JSON.stringify({ cliente_telefone: telefone.trim() })
-      );
-
       await clearCart();
 
       Alert.alert(

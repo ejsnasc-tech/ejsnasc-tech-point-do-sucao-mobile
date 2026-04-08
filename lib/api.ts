@@ -38,3 +38,40 @@ export async function createPedido(payload: CreatePedidoPayload): Promise<{ id: 
     body: JSON.stringify(payload),
   });
 }
+
+export async function registerUser(payload: {
+  nome: string;
+  telefone: string;
+  email: string;
+  senha: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  referencia?: string;
+}): Promise<{ id: number; nome: string; telefone: string; email: string }> {
+  return apiFetch("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function loginUser(payload: {
+  email: string;
+  senha: string;
+}): Promise<{
+  id: number;
+  nome: string;
+  telefone: string;
+  email: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  referencia?: string;
+}> {
+  return apiFetch("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

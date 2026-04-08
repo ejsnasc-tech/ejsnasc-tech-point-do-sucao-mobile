@@ -1,8 +1,35 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { useAuth } from "@/hooks/useAuth";
 import { BRAND_COLOR } from "@/constants/categories";
 
 export default function RootLayout() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthScreen = segments[0] === "login";
+
+    if (!user && !inAuthScreen) {
+      router.replace("/login");
+    } else if (user && inAuthScreen) {
+      router.replace("/(tabs)");
+    }
+  }, [user, isLoading, segments]);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
+        <ActivityIndicator size="large" color={BRAND_COLOR} />
+      </View>
+    );
+  }
+
   return (
     <>
       <StatusBar style="light" />
@@ -13,6 +40,7 @@ export default function RootLayout() {
           headerTitleStyle: { fontWeight: "700" },
         }}
       >
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="checkout"
