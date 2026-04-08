@@ -205,7 +205,9 @@ export default function LoginScreen() {
         password: loginSenha,
       });
 
+      console.log("[Login] API response:", JSON.stringify(data));
       const cliente = data.cliente;
+      console.log("[Login] cliente object:", JSON.stringify(cliente));
       await login({
         nome: cliente.cliente_nome,
         telefone: cliente.cliente_telefone,

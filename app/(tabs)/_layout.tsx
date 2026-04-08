@@ -1,11 +1,37 @@
+import React, { createContext, useContext } from "react";
 import { Tabs } from "expo-router";
 import { TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BRAND_COLOR } from "@/constants/categories";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrderPolling } from "@/hooks/useOrderPolling";
+import type { Pedido } from "@/types/product";
+
+type OrdersContextType = {
+  orders: Pedido[];
+  isLoading: boolean;
+  refetch: () => Promise<void>;
+};
+
+const OrdersContext = createContext<OrdersContextType>({
+  orders: [],
+  isLoading: false,
+  refetch: async () => {},
+});
+
+export function useOrders() {
+  return useContext(OrdersContext);
+}
 
 export default function TabsLayout() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const polling = useOrderPolling({
+    telefone: user?.telefone,
+    onStatusChange: (orderId, newStatus) => {
+      console.log(`[Tabs] Pedido #${orderId} atualizado para: ${newStatus}`);
+    },
+  });
 
   const handleLogout = () => {
     Alert.alert("Sair da conta", "Deseja realmente sair?", [
@@ -19,6 +45,7 @@ export default function TabsLayout() {
   };
 
   return (
+    <OrdersContext.Provider value={polling}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: BRAND_COLOR,
@@ -79,5 +106,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </OrdersContext.Provider>
   );
 }

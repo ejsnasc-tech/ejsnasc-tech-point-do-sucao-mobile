@@ -43,12 +43,13 @@ export default function CheckoutScreen() {
   // Preenche campos automaticamente quando user carrega do AsyncStorage
   useEffect(() => {
     if (user) {
-      setNome((prev) => prev || user.nome || "");
-      setTelefone((prev) => prev || user.telefone || "");
-      setRua((prev) => prev || user.rua || "");
-      setNumero((prev) => prev || user.numero || "");
-      setBairro((prev) => prev || user.bairro || "");
-      setReferencia((prev) => prev || user.referencia || "");
+      console.log("[Checkout] user loaded:", user.nome, "| telefone:", user.telefone);
+      if (!nome) setNome(user.nome || "");
+      if (!telefone) setTelefone(user.telefone || "");
+      if (!rua) setRua(user.rua || "");
+      if (!numero) setNumero(user.numero || "");
+      if (!bairro) setBairro(user.bairro || "");
+      if (!referencia) setReferencia(user.referencia || "");
     }
   }, [user]);
 

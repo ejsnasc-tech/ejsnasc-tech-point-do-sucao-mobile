@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { getPedidos } from "@/lib/api";
+import { sendOrderStatusNotification } from "@/lib/notifications";
 import type { Pedido, PedidoStatus } from "@/types/product";
 
 const POLL_INTERVAL_MS = 15_000;
@@ -36,7 +38,11 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
       fetchedOrders.forEach((order) => {
         const prev = previousStatusRef.current[order.id];
         if (prev && prev !== order.status) {
+          console.log(`[Pedidos] Status mudou! Pedido #${order.id}: ${prev} → ${order.status}`);
           onStatusChangeRef.current?.(order.id, order.status);
+          sendOrderStatusNotification(order.id, order.status);
+        } else if (!prev) {
+          console.log(`[Pedidos] Pedido #${order.id} registrado com status: ${order.status}`);
         }
         previousStatusRef.current[order.id] = order.status;
       });
@@ -46,6 +52,16 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
       setIsLoading(false);
     }
   }, []);
+
+  // Refetch quando o app volta do background
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") {
+        void fetchOrders();
+      }
+    });
+    return () => sub.remove();
+  }, [fetchOrders]);
 
   useEffect(() => {
     void fetchOrders();

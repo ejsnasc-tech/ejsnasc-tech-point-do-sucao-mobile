@@ -8,8 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { useAuth } from "@/hooks/useAuth";
-import { useOrderPolling } from "@/hooks/useOrderPolling";
+import { useOrders } from "./_layout";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import type { Pedido } from "@/types/product";
 import { BRAND_COLOR } from "@/constants/categories";
@@ -57,13 +56,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 }
 
 export default function PedidosScreen() {
-  const { user } = useAuth();
-  const { orders, isLoading, refetch } = useOrderPolling({
-    telefone: user?.telefone,
-    onStatusChange: (orderId, newStatus) => {
-      console.log(`Pedido #${orderId} atualizado para: ${newStatus}`);
-    },
-  });
+  const { orders, isLoading, refetch } = useOrders();
 
   // Refetch orders every time this tab gains focus
   useFocusEffect(

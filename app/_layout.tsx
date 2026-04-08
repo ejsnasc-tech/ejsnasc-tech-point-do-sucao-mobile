@@ -4,12 +4,18 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
+import { requestNotificationPermissions } from "@/lib/notifications";
 import { BRAND_COLOR } from "@/constants/categories";
 
 function InnerLayout() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+
+  // Solicitar permissão de notificação ao abrir o app
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
