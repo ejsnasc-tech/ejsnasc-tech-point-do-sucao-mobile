@@ -13,7 +13,12 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+    let msg = `Erro na requisição: ${response.status}`;
+    try {
+      const body = await response.json();
+      msg = body.error || body.message || msg;
+    } catch {}
+    throw new Error(msg);
   }
 
   return response.json() as Promise<T>;
@@ -39,18 +44,26 @@ export async function createPedido(payload: CreatePedidoPayload): Promise<{ id: 
   });
 }
 
+export async function sendVerificationCode(telefone: string): Promise<{ message: string }> {
+  return apiFetch("/api/client/send-verification", {
+    method: "POST",
+    body: JSON.stringify({ telefone }),
+  });
+}
+
 export async function registerUser(payload: {
-  nome: string;
-  telefone: string;
   email: string;
-  senha: string;
+  password: string;
+  cliente_nome: string;
+  cliente_telefone: string;
   rua?: string;
   numero?: string;
   complemento?: string;
   bairro?: string;
   referencia?: string;
-}): Promise<{ id: number; nome: string; telefone: string; email: string }> {
-  return apiFetch("/api/auth/register", {
+  verification_code: string;
+}): Promise<{ id: number; cliente_nome: string; cliente_telefone: string; email: string }> {
+  return apiFetch("/api/client/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -58,19 +71,21 @@ export async function registerUser(payload: {
 
 export async function loginUser(payload: {
   email: string;
-  senha: string;
+  password: string;
 }): Promise<{
-  id: number;
-  nome: string;
-  telefone: string;
-  email: string;
-  rua?: string;
-  numero?: string;
-  complemento?: string;
-  bairro?: string;
-  referencia?: string;
+  cliente: {
+    id: number;
+    cliente_nome: string;
+    cliente_telefone: string;
+    email: string;
+    rua?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    referencia?: string;
+  };
 }> {
-  return apiFetch("/api/auth/login", {
+  return apiFetch("/api/client/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });

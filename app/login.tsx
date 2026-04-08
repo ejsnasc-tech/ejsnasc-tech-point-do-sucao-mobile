@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import { registerUser, loginUser } from "@/lib/api";
+import { registerUser, loginUser, sendVerificationCode } from "@/lib/api";
 import { BRAND_COLOR, BRAND_COLOR_DARK, BRAND_SECONDARY } from "@/constants/categories";
 
 function getPasswordStrength(senha: string): { label: string; color: string } {
@@ -39,6 +39,11 @@ export default function LoginScreen() {
 
   const [isRegister, setIsRegister] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Verification step
+  const [verificationStep, setVerificationStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login fields
   const [loginEmail, setLoginEmail] = useState("");
@@ -84,18 +89,41 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!verificationStep) {
+      // Step 1: Send verification code
+      setIsSubmitting(true);
+      try {
+        await sendVerificationCode(telefone.trim());
+        setVerificationStep(true);
+        startResendCooldown();
+        Alert.alert("Código enviado", "Um código de verificação foi enviado para seu telefone.");
+      } catch {
+        Alert.alert("Erro", "Não foi possível enviar o código de verificação. Verifique o telefone.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Step 2: Register with verification code
+    if (verificationCode.length !== 6) {
+      Alert.alert("Atenção", "Digite o código de 6 dígitos.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await registerUser({
-        nome: nome.trim(),
-        telefone: telefone.trim(),
+        cliente_nome: nome.trim(),
+        cliente_telefone: telefone.trim(),
         email: email.trim().toLowerCase(),
-        senha,
+        password: senha,
         rua: rua.trim() || undefined,
         numero: numero.trim() || undefined,
         complemento: complemento.trim() || undefined,
         bairro: bairro.trim() || undefined,
         referencia: referencia.trim() || undefined,
+        verification_code: verificationCode,
       });
 
       await login({
@@ -111,7 +139,34 @@ export default function LoginScreen() {
 
       router.replace("/(tabs)");
     } catch {
-      Alert.alert("Erro", "Não foi possível criar sua conta. Tente novamente.");
+      Alert.alert("Erro", "Não foi possível criar sua conta. Verifique o código e tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
+    setIsSubmitting(true);
+    try {
+      await sendVerificationCode(telefone.trim());
+      startResendCooldown();
+      Alert.alert("Código reenviado", "Um novo código foi enviado para seu telefone.");
+    } catch {
+      Alert.alert("Erro", "Não foi possível reenviar o código.");
     } finally {
       setIsSubmitting(false);
     }
@@ -129,25 +184,27 @@ export default function LoginScreen() {
 
     setIsSubmitting(true);
     try {
-      const userData = await loginUser({
+      const data = await loginUser({
         email: loginEmail.trim().toLowerCase(),
-        senha: loginSenha,
+        password: loginSenha,
       });
 
+      const cliente = data.cliente;
       await login({
-        nome: userData.nome,
-        telefone: userData.telefone,
-        email: userData.email,
-        rua: userData.rua,
-        numero: userData.numero,
-        complemento: userData.complemento,
-        bairro: userData.bairro,
-        referencia: userData.referencia,
+        nome: cliente.cliente_nome,
+        telefone: cliente.cliente_telefone,
+        email: cliente.email,
+        rua: cliente.rua,
+        numero: cliente.numero,
+        complemento: cliente.complemento,
+        bairro: cliente.bairro,
+        referencia: cliente.referencia,
       });
 
       router.replace("/(tabs)");
-    } catch {
-      Alert.alert("Erro", "Email ou senha inválidos.");
+    } catch (err: any) {
+      console.log("LOGIN ERROR:", err?.message || err);
+      Alert.alert("Erro", err?.message || "Email ou senha inválidos.");
     } finally {
       setIsSubmitting(false);
     }
@@ -375,6 +432,36 @@ export default function LoginScreen() {
             returnKeyType="done"
           />
 
+          {verificationStep && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.sectionTitle}>Verificação por SMS</Text>
+              <Text style={styles.verificationHint}>
+                Digite o código de 6 dígitos enviado para {telefone}
+              </Text>
+              <TextInput
+                style={[styles.input, styles.codeInput]}
+                placeholder="000000"
+                value={verificationCode}
+                onChangeText={(t) => setVerificationCode(t.replace(/\D/g, "").slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResendCode}
+                disabled={resendCooldown > 0}
+              >
+                <Text style={[styles.resendText, resendCooldown > 0 && { color: "#999" }]}>
+                  {resendCooldown > 0
+                    ? `Reenviar código em ${resendCooldown}s`
+                    : "Reenviar código"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleRegister}
@@ -384,7 +471,9 @@ export default function LoginScreen() {
             {isSubmitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Criar Conta</Text>
+              <Text style={styles.submitText}>
+                {verificationStep ? "Criar Conta" : "Enviar Código"}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -573,5 +662,27 @@ const styles = StyleSheet.create({
   toggleTextBold: {
     color: BRAND_COLOR,
     fontWeight: "700",
+  },
+  verificationHint: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  codeInput: {
+    textAlign: "center",
+    fontSize: 24,
+    letterSpacing: 8,
+    fontWeight: "700",
+  },
+  resendButton: {
+    alignItems: "center",
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  resendText: {
+    color: BRAND_COLOR,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

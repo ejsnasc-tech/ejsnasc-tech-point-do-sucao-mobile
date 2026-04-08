@@ -2,10 +2,10 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { BRAND_COLOR } from "@/constants/categories";
 
-export default function RootLayout() {
+function InnerLayout() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
@@ -51,5 +51,13 @@ export default function RootLayout() {
         />
       </Stack>
     </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <InnerLayout />
+    </AuthProvider>
   );
 }

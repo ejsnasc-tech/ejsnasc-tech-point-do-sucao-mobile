@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext, createContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AUTH_KEY = "@pointdosucao:auth";
@@ -14,7 +14,17 @@ export type AuthUser = {
   referencia?: string;
 };
 
-export function useAuth() {
+type AuthContextType = {
+  user: AuthUser | null;
+  isLoading: boolean;
+  login: (data: AuthUser) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (data: Partial<AuthUser>) => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -34,7 +44,6 @@ export function useAuth() {
   const login = useCallback(async (data: AuthUser) => {
     setUser(data);
     await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(data));
-    // Also save for order polling compatibility
     await AsyncStorage.setItem(
       "@pointdosucao:cliente_info",
       JSON.stringify({ cliente_telefone: data.telefone })
@@ -57,5 +66,15 @@ export function useAuth() {
     [user]
   );
 
-  return { user, isLoading, login, logout, updateUser };
+  return React.createElement(
+    AuthContext.Provider,
+    { value: { user, isLoading, login, logout, updateUser } },
+    children
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
