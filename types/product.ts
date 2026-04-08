@@ -27,6 +27,7 @@ export type Product = {
 export type CartItem = Product & { qtde: number };
 
 export type PedidoStatus =
+  | "novo"
   | "pendente"
   | "confirmado"
   | "em_preparo"
@@ -35,29 +36,51 @@ export type PedidoStatus =
   | "cancelado";
 
 export type PedidoItem = {
-  produto_id: number;
-  nome: string;
-  qtde: number;
+  produto_id?: number;
+  pedido_id?: number;
+  nome_produto: string;
+  quantidade: number;
   preco_unitario: number;
+  total_item?: number;
 };
 
 export type Pedido = {
   id: number;
   cliente_nome: string;
   cliente_telefone: string;
-  cliente_endereco?: string;
-  tipo_entrega: "entrega" | "retirada";
+  endereco_entrega?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  referencia?: string;
+  forma_pagamento?: string;
+  observacao?: string;
   total: number;
+  subtotal?: number;
+  taxa_entrega?: number;
   status: PedidoStatus;
   itens: PedidoItem[];
   criado_em?: string;
+  criado_em_br?: string;
 };
 
 export type CreatePedidoPayload = {
   cliente_nome: string;
   cliente_telefone: string;
-  cliente_endereco?: string;
-  tipo_entrega: "entrega" | "retirada";
-  itens: PedidoItem[];
+  endereco_entrega?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  referencia?: string;
+  forma_pagamento: string;
+  observacao?: string;
+  troco_para?: number;
+  subtotal: number;
+  taxa_entrega: number;
   total: number;
+  itens: PedidoItem[];
 };

@@ -6,6 +6,7 @@ const STATUS_CONFIG: Record<
   PedidoStatus,
   { label: string; backgroundColor: string; color: string }
 > = {
+  novo: { label: "Novo", backgroundColor: "#fff3cd", color: "#856404" },
   pendente: { label: "Pendente", backgroundColor: "#fff3cd", color: "#856404" },
   confirmado: { label: "Confirmado", backgroundColor: "#cce5ff", color: "#004085" },
   em_preparo: { label: "Em Preparo", backgroundColor: "#d4edda", color: "#155724" },

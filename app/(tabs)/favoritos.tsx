@@ -35,7 +35,7 @@ export default function FavoritosScreen() {
     void loadProducts();
   }, [loadProducts]);
 
-  const favoriteProducts = allProducts.filter((p) => isFavorite(p.id));
+  const favoriteProducts = allProducts.filter((p) => isFavorite(p.id) && p.preco > 0);
 
   if (isLoading) {
     return (

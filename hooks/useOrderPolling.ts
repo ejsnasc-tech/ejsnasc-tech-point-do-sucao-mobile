@@ -1,51 +1,51 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getPedidos } from "@/lib/api";
 import type { Pedido, PedidoStatus } from "@/types/product";
 
-const CLIENTE_KEY = "@pointdosucao:cliente_info";
 const POLL_INTERVAL_MS = 15_000;
 
-type ClienteInfo = {
-  cliente_telefone?: string;
-};
-
 type UseOrderPollingOptions = {
+  telefone?: string;
   onStatusChange?: (orderId: number, newStatus: PedidoStatus) => void;
 };
 
-export function useOrderPolling({ onStatusChange }: UseOrderPollingOptions = {}) {
+export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOptions = {}) {
   const [orders, setOrders] = useState<Pedido[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const previousStatusRef = useRef<Record<number, PedidoStatus>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onStatusChangeRef = useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
+  const telefoneRef = useRef(telefone);
+  telefoneRef.current = telefone;
 
   const fetchOrders = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(CLIENTE_KEY);
-      if (!raw) return;
-
-      const info = JSON.parse(raw) as ClienteInfo;
-      const telefone = info?.cliente_telefone;
-      if (!telefone) return;
+      const tel = telefoneRef.current;
+      if (!tel) {
+        console.log("[Pedidos] Sem telefone para buscar pedidos");
+        return;
+      }
 
       setIsLoading(true);
-      const fetchedOrders = await getPedidos(telefone);
+      console.log("[Pedidos] Buscando pedidos para:", tel);
+      const fetchedOrders = await getPedidos(tel);
+      console.log("[Pedidos] Encontrados:", fetchedOrders.length, "pedidos");
       setOrders(fetchedOrders);
 
       fetchedOrders.forEach((order) => {
         const prev = previousStatusRef.current[order.id];
         if (prev && prev !== order.status) {
-          onStatusChange?.(order.id, order.status);
+          onStatusChangeRef.current?.(order.id, order.status);
         }
         previousStatusRef.current[order.id] = order.status;
       });
-    } catch {
-      // Erro silencioso para não interromper o polling
+    } catch (err) {
+      console.log("[Pedidos] Erro ao buscar:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [onStatusChange]);
+  }, []);
 
   useEffect(() => {
     void fetchOrders();

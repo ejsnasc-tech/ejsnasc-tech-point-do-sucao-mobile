@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { CartProvider } from "@/hooks/useCart";
 import { BRAND_COLOR } from "@/constants/categories";
 
 function InnerLayout() {
@@ -57,7 +58,9 @@ function InnerLayout() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <InnerLayout />
+      <CartProvider>
+        <InnerLayout />
+      </CartProvider>
     </AuthProvider>
   );
 }

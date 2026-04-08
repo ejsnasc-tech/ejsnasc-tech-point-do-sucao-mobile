@@ -1,10 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext, createContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { CartItem, Product } from "@/types/product";
 
 const CART_KEY = "@pointdosucao:cart";
 
-export function useCart() {
+type CartContextType = {
+  cart: CartItem[];
+  getQuantity: (productId: number) => number;
+  updateQuantity: (product: Product, delta: number) => Promise<void>;
+  removeItem: (productId: number) => Promise<void>;
+  clearCart: () => Promise<void>;
+  total: number;
+  qtdTotal: number;
+};
+
+const CartContext = createContext<CartContextType | null>(null);
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
@@ -55,6 +67,14 @@ export function useCart() {
     [cart, persistCart]
   );
 
+  const removeItem = useCallback(
+    async (productId: number) => {
+      const newCart = cart.filter((item) => item.id !== productId);
+      await persistCart(newCart);
+    },
+    [cart, persistCart]
+  );
+
   const clearCart = useCallback(async () => {
     await persistCart([]);
   }, [persistCart]);
@@ -62,5 +82,15 @@ export function useCart() {
   const total = cart.reduce((sum, item) => sum + item.preco * item.qtde, 0);
   const qtdTotal = cart.reduce((sum, item) => sum + item.qtde, 0);
 
-  return { cart, getQuantity, updateQuantity, clearCart, total, qtdTotal };
+  return React.createElement(
+    CartContext.Provider,
+    { value: { cart, getQuantity, updateQuantity, removeItem, clearCart, total, qtdTotal } },
+    children
+  );
+}
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  return ctx;
 }

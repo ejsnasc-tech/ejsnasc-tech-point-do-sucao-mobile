@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Switch,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,15 +23,41 @@ function formatBRL(value: number): string {
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { cart, total, clearCart } = useCart();
-  const { user } = useAuth();
+  const { cart, total, clearCart, removeItem } = useCart();
+  const { user, updateUser } = useAuth();
 
   const [nome, setNome] = useState(user?.nome ?? "");
   const [telefone, setTelefone] = useState(user?.telefone ?? "");
-  const userEndereco = [user?.rua, user?.numero, user?.bairro].filter(Boolean).join(", ");
-  const [endereco, setEndereco] = useState(userEndereco);
+  const [rua, setRua] = useState(user?.rua ?? "");
+  const [numero, setNumero] = useState(user?.numero ?? "");
+  const [complemento, setComplemento] = useState("");
+  const [bairro, setBairro] = useState(user?.bairro ?? "");
+  const [referencia, setReferencia] = useState(user?.referencia ?? "");
   const [isRetirada, setIsRetirada] = useState(false);
+  const [formaPagamento, setFormaPagamento] = useState("pix");
+  const [observacao, setObservacao] = useState("");
+  const [precisaTroco, setPrecisaTroco] = useState(false);
+  const [trocoPara, setTrocoPara] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Preenche campos automaticamente quando user carrega do AsyncStorage
+  useEffect(() => {
+    if (user) {
+      setNome((prev) => prev || user.nome || "");
+      setTelefone((prev) => prev || user.telefone || "");
+      setRua((prev) => prev || user.rua || "");
+      setNumero((prev) => prev || user.numero || "");
+      setBairro((prev) => prev || user.bairro || "");
+      setReferencia((prev) => prev || user.referencia || "");
+    }
+  }, [user]);
+
+  const formasPagamento = [
+    { value: "pix", label: "PIX" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "cartao_credito", label: "Cartão Crédito" },
+    { value: "cartao_debito", label: "Cartão Débito" },
+  ];
 
   const handleSubmit = useCallback(async () => {
     if (!nome.trim()) {
@@ -41,8 +68,12 @@ export default function CheckoutScreen() {
       Alert.alert("Atenção", "Por favor, informe seu telefone.");
       return;
     }
-    if (!isRetirada && !endereco.trim()) {
-      Alert.alert("Atenção", "Por favor, informe seu endereço para entrega.");
+    if (!isRetirada && !rua.trim()) {
+      Alert.alert("Atenção", "Por favor, informe a rua para entrega.");
+      return;
+    }
+    if (!isRetirada && !bairro.trim()) {
+      Alert.alert("Atenção", "Por favor, informe o bairro para entrega.");
       return;
     }
     if (cart.length === 0) {
@@ -52,22 +83,55 @@ export default function CheckoutScreen() {
 
     setIsSubmitting(true);
     try {
+      const enderecoEntrega = isRetirada
+        ? "Retirada no local"
+        : [rua.trim(), numero.trim(), bairro.trim()].filter(Boolean).join(", ");
+
       const payload = {
         cliente_nome: nome.trim(),
         cliente_telefone: telefone.trim(),
-        cliente_endereco: isRetirada ? undefined : endereco.trim(),
-        tipo_entrega: isRetirada ? ("retirada" as const) : ("entrega" as const),
+        endereco_entrega: enderecoEntrega,
+        rua: isRetirada ? "Retirada" : rua.trim(),
+        numero: isRetirada ? "0" : numero.trim() || "S/N",
+        complemento: complemento.trim() || undefined,
+        bairro: isRetirada ? "Centro" : bairro.trim(),
+        cidade: "Estância",
+        referencia: referencia.trim() || undefined,
+        forma_pagamento: formaPagamento,
+        observacao: isRetirada
+          ? [observacao.trim(), "RETIRADA NO LOCAL"].filter(Boolean).join(" - ")
+          : observacao.trim() || undefined,
+        troco_para:
+          formaPagamento === "dinheiro" && precisaTroco && trocoPara
+            ? parseFloat(trocoPara)
+            : undefined,
+        subtotal: total,
+        taxa_entrega: 0,
         total,
         itens: cart.map((item) => ({
           produto_id: item.id,
-          nome: item.nome,
-          qtde: item.qtde,
+          nome_produto: item.nome,
           preco_unitario: item.preco,
+          quantidade: item.qtde,
         })),
       };
 
       await createPedido(payload);
+      console.log("[Checkout] Pedido criado com sucesso!");
+
+      // Salva dados do cliente para preencher automaticamente no próximo pedido
+      await updateUser({
+        nome: nome.trim(),
+        telefone: telefone.trim(),
+        rua: isRetirada ? user?.rua : rua.trim(),
+        numero: isRetirada ? user?.numero : numero.trim(),
+        bairro: isRetirada ? user?.bairro : bairro.trim(),
+        referencia: isRetirada ? user?.referencia : referencia.trim(),
+      });
+      console.log("[Checkout] Dados do cliente salvos");
+
       await clearCart();
+      console.log("[Checkout] Carrinho limpo");
 
       Alert.alert(
         "Pedido realizado! 🎉",
@@ -76,21 +140,21 @@ export default function CheckoutScreen() {
           {
             text: "Ver Pedidos",
             onPress: () => {
-              router.dismiss();
-              router.push("/(tabs)/pedidos");
+              router.dismissAll();
+              router.replace("/(tabs)/pedidos");
             },
           },
         ]
       );
-    } catch {
+    } catch (err: any) {
       Alert.alert(
         "Erro",
-        "Não foi possível enviar seu pedido. Verifique sua conexão e tente novamente."
+        err?.message || "Não foi possível enviar seu pedido. Verifique sua conexão e tente novamente."
       );
     } finally {
       setIsSubmitting(false);
     }
-  }, [nome, telefone, endereco, isRetirada, cart, total, clearCart, router]);
+  }, [nome, telefone, rua, numero, complemento, bairro, referencia, isRetirada, formaPagamento, observacao, precisaTroco, trocoPara, cart, total, clearCart, updateUser, user, router]);
 
   if (cart.length === 0) {
     return (
@@ -113,6 +177,13 @@ export default function CheckoutScreen() {
             <Text style={styles.itemPreco}>
               {formatBRL(item.preco * item.qtde)}
             </Text>
+            <TouchableOpacity
+              onPress={() => removeItem(item.id)}
+              style={styles.removeButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#e63946" />
+            </TouchableOpacity>
           </View>
         ))}
         <View style={styles.divider} />
@@ -159,19 +230,120 @@ export default function CheckoutScreen() {
 
         {!isRetirada && (
           <>
-            <Text style={styles.label}>Endereço de entrega *</Text>
+            <View style={styles.row}>
+              <View style={styles.flex3}>
+                <Text style={styles.label}>Rua *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Rua"
+                  value={rua}
+                  onChangeText={setRua}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={styles.flex1}>
+                <Text style={styles.label}>Nº</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nº"
+                  value={numero}
+                  onChangeText={setNumero}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <Text style={styles.label}>Complemento</Text>
             <TextInput
-              style={[styles.input, styles.inputMultiline]}
-              placeholder="Rua, número, bairro, referência..."
-              value={endereco}
-              onChangeText={setEndereco}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              autoCapitalize="sentences"
+              style={styles.input}
+              placeholder="Apto, bloco... (opcional)"
+              value={complemento}
+              onChangeText={setComplemento}
+            />
+            <Text style={styles.label}>Bairro *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Bairro"
+              value={bairro}
+              onChangeText={setBairro}
+              autoCapitalize="words"
+            />
+            <Text style={styles.label}>Referência</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ponto de referência (opcional)"
+              value={referencia}
+              onChangeText={setReferencia}
             />
           </>
         )}
+      </View>
+
+      <Text style={styles.sectionTitle}>Pagamento</Text>
+      <View style={styles.card}>
+        <View style={styles.paymentOptions}>
+          {formasPagamento.map((fp) => (
+            <TouchableOpacity
+              key={fp.value}
+              style={[
+                styles.paymentOption,
+                formaPagamento === fp.value && styles.paymentOptionSelected,
+              ]}
+              onPress={() => {
+                setFormaPagamento(fp.value);
+                if (fp.value !== "dinheiro") setPrecisaTroco(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.paymentOptionText,
+                  formaPagamento === fp.value && styles.paymentOptionTextSelected,
+                ]}
+              >
+                {fp.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {formaPagamento === "dinheiro" && (
+          <>
+            <View style={[styles.switchRow, { marginTop: 12 }]}>
+              <Text style={styles.switchLabel}>Precisa de troco?</Text>
+              <Switch
+                value={precisaTroco}
+                onValueChange={setPrecisaTroco}
+                trackColor={{ true: BRAND_COLOR }}
+                thumbColor={precisaTroco ? "#fff" : "#f4f4f4"}
+              />
+            </View>
+            {precisaTroco && (
+              <>
+                <Text style={styles.label}>Troco para quanto?</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 50.00"
+                  value={trocoPara}
+                  onChangeText={setTrocoPara}
+                  keyboardType="decimal-pad"
+                />
+              </>
+            )}
+          </>
+        )}
+      </View>
+
+      <Text style={styles.sectionTitle}>Observação</Text>
+      <View style={styles.card}>
+        <TextInput
+          style={[styles.input, styles.inputMultiline]}
+          placeholder="Alguma observação? (opcional)"
+          value={observacao}
+          onChangeText={setObservacao}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
       </View>
 
       <TouchableOpacity
@@ -249,6 +421,10 @@ const styles = StyleSheet.create({
     color: "#333",
     fontWeight: "500",
   },
+  removeButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
   divider: {
     height: 1,
     backgroundColor: "#f0f0f0",
@@ -288,6 +464,16 @@ const styles = StyleSheet.create({
   inputMultiline: {
     height: 80,
   },
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  flex3: {
+    flex: 3,
+  },
+  flex1: {
+    flex: 1,
+  },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -315,6 +501,32 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "#fff",
     fontSize: 17,
+    fontWeight: "700",
+  },
+  paymentOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  paymentOption: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#fafafa",
+  },
+  paymentOptionSelected: {
+    borderColor: BRAND_COLOR,
+    backgroundColor: "#fff0f0",
+  },
+  paymentOptionText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  paymentOptionTextSelected: {
+    color: BRAND_COLOR,
     fontWeight: "700",
   },
 });

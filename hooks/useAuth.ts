@@ -62,6 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...user, ...data };
       setUser(updated);
       await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+      // Mantém cliente_info sincronizado com o telefone
+      if (updated.telefone) {
+        await AsyncStorage.setItem(
+          "@pointdosucao:cliente_info",
+          JSON.stringify({ cliente_telefone: updated.telefone })
+        );
+      }
     },
     [user]
   );

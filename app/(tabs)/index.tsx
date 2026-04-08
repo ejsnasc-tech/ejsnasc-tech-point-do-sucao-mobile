@@ -59,7 +59,7 @@ export default function CardapioScreen() {
     const categoryMatch =
       selectedCategory === "Todos" || p.categoria === selectedCategory;
     const active = activeCategories.length === 0 || activeCategories.includes(p.categoria);
-    return categoryMatch && active && p.ativo !== 0 && p.ativo !== false;
+    return categoryMatch && active && p.ativo !== 0 && p.ativo !== false && p.preco > 0;
   });
 
   if (isLoading) {

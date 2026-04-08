@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   FlatList,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useAuth } from "@/hooks/useAuth";
 import { useOrderPolling } from "@/hooks/useOrderPolling";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import type { Pedido } from "@/types/product";
@@ -23,20 +25,20 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
         <Text style={styles.pedidoId}>Pedido #{pedido.id}</Text>
         <OrderStatusBadge status={pedido.status} />
       </View>
-      {pedido.criado_em && (
+      {(pedido.criado_em_br || pedido.criado_em) && (
         <Text style={styles.date}>
-          {new Date(pedido.criado_em).toLocaleString("pt-BR")}
+          {pedido.criado_em_br ?? new Date(pedido.criado_em!).toLocaleString("pt-BR")}
         </Text>
       )}
       <View style={styles.divider} />
       {pedido.itens.map((item, index) => (
         <View key={index} style={styles.itemRow}>
-          <Text style={styles.itemQtde}>{item.qtde}x</Text>
+          <Text style={styles.itemQtde}>{item.quantidade}x</Text>
           <Text style={styles.itemNome} numberOfLines={1}>
-            {item.nome}
+            {item.nome_produto}
           </Text>
           <Text style={styles.itemPreco}>
-            {formatBRL(item.preco_unitario * item.qtde)}
+            {formatBRL(item.preco_unitario * item.quantidade)}
           </Text>
         </View>
       ))}
@@ -46,8 +48,8 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
         <Text style={styles.totalValue}>{formatBRL(pedido.total)}</Text>
       </View>
       <Text style={styles.deliveryType}>
-        {pedido.tipo_entrega === "entrega"
-          ? `📍 Entrega: ${pedido.cliente_endereco ?? ""}`
+        {pedido.endereco_entrega
+          ? `📍 Entrega: ${pedido.endereco_entrega}`
           : "🏪 Retirada no local"}
       </Text>
     </View>
@@ -55,11 +57,20 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 }
 
 export default function PedidosScreen() {
+  const { user } = useAuth();
   const { orders, isLoading, refetch } = useOrderPolling({
+    telefone: user?.telefone,
     onStatusChange: (orderId, newStatus) => {
       console.log(`Pedido #${orderId} atualizado para: ${newStatus}`);
     },
   });
+
+  // Refetch orders every time this tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   if (isLoading && orders.length === 0) {
     return (
