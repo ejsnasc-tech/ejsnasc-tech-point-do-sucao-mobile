@@ -17,40 +17,77 @@ function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const STATUS_ICON: Record<string, string> = {
+  novo: "🕐",
+  pendente: "🕐",
+  confirmado: "✅",
+  em_preparo: "👨‍🍳",
+  pronto: "🎉",
+  entregue: "🏠",
+  cancelado: "❌",
+};
+
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.pedidoId}>Pedido #{pedido.id}</Text>
+      {/* Status strip */}
+      <View style={styles.statusStrip}>
+        <Text style={styles.statusIcon}>{STATUS_ICON[pedido.status] ?? "📦"}</Text>
+        <View style={styles.statusInfo}>
+          <Text style={styles.pedidoId}>Pedido #{pedido.id}</Text>
+          {(pedido.criado_em_br || pedido.criado_em) && (
+            <Text style={styles.date}>
+              {pedido.criado_em_br ?? new Date(pedido.criado_em!).toLocaleString("pt-BR")}
+            </Text>
+          )}
+        </View>
         <OrderStatusBadge status={pedido.status} />
       </View>
-      {(pedido.criado_em_br || pedido.criado_em) && (
-        <Text style={styles.date}>
-          {pedido.criado_em_br ?? new Date(pedido.criado_em!).toLocaleString("pt-BR")}
-        </Text>
-      )}
+
       <View style={styles.divider} />
-      {pedido.itens.map((item, index) => (
-        <View key={index} style={styles.itemRow}>
-          <Text style={styles.itemQtde}>{item.quantidade}x</Text>
-          <Text style={styles.itemNome} numberOfLines={1}>
-            {item.nome_produto}
-          </Text>
-          <Text style={styles.itemPreco}>
-            {formatBRL(item.preco_unitario * item.quantidade)}
-          </Text>
-        </View>
-      ))}
-      <View style={styles.divider} />
-      <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Total</Text>
-        <Text style={styles.totalValue}>{formatBRL(pedido.total)}</Text>
+
+      {/* Items */}
+      <View style={styles.itemsContainer}>
+        {pedido.itens.map((item, index) => (
+          <View key={index} style={styles.itemRow}>
+            <View style={styles.itemQtdeBadge}>
+              <Text style={styles.itemQtdeText}>{item.quantidade}</Text>
+            </View>
+            <Text style={styles.itemNome} numberOfLines={1}>
+              {item.nome_produto}
+            </Text>
+            <Text style={styles.itemPreco}>
+              {formatBRL(item.preco_unitario * item.quantidade)}
+            </Text>
+          </View>
+        ))}
       </View>
-      <Text style={styles.deliveryType}>
-        {pedido.endereco_entrega
-          ? `📍 Entrega: ${pedido.endereco_entrega}`
-          : "🏪 Retirada no local"}
+
+      <View style={styles.divider} />
+
+      {/* Footer */}
+      <View style={styles.cardFooter}>
+        <Text style={styles.deliveryType}>
+          {pedido.endereco_entrega
+            ? `📍 ${pedido.endereco_entrega}`
+            : "🏪 Retirada no local"}
+        </Text>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>{formatBRL(pedido.total)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ListHeader({ count }: { count: number }) {
+  return (
+    <View style={styles.listHeader}>
+      <Text style={styles.listHeaderTitle}>
+        {count === 1 ? "1 pedido" : `${count} pedidos`}
       </Text>
+      <Text style={styles.listHeaderSub}>atualizando automaticamente</Text>
     </View>
   );
 }
@@ -76,9 +113,10 @@ export default function PedidosScreen() {
 
   if (orders.length === 0) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>🛒</Text>
+        <Text style={styles.emptyTitle}>Nenhum pedido ainda</Text>
         <Text style={styles.emptyText}>
-          Você ainda não tem pedidos. 🛒{"\n"}
           Faça seu primeiro pedido no cardápio!
         </Text>
       </View>
@@ -91,6 +129,7 @@ export default function PedidosScreen() {
         data={orders}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <PedidoCard pedido={item} />}
+        ListHeaderComponent={<ListHeader count={orders.length} />}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
@@ -108,27 +147,54 @@ export default function PedidosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#f5f5f5",
   },
   list: {
     padding: 16,
+    paddingBottom: 32,
   },
+
+  // List header
+  listHeader: {
+    marginBottom: 16,
+  },
+  listHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  listHeaderSub: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 2,
+  },
+
+  // Card
   card: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
+    borderRadius: 16,
+    marginBottom: 14,
+    overflow: "hidden",
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowRadius: 6,
   },
-  cardHeader: {
+
+  // Status strip at top of card
+  statusStrip: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
+    padding: 14,
+    paddingBottom: 10,
+    gap: 10,
+  },
+  statusIcon: {
+    fontSize: 28,
+  },
+  statusInfo: {
+    flex: 1,
   },
   pedidoId: {
     fontSize: 16,
@@ -138,23 +204,38 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 12,
     color: "#999",
-    marginBottom: 8,
+    marginTop: 1,
   },
+
   divider: {
     height: 1,
     backgroundColor: "#f0f0f0",
-    marginVertical: 8,
+    marginHorizontal: 14,
+  },
+
+  // Items
+  itemsContainer: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
   },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    gap: 8,
   },
-  itemQtde: {
-    fontSize: 13,
-    color: BRAND_COLOR,
-    fontWeight: "600",
-    width: 28,
+  itemQtdeBadge: {
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 6,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemQtdeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
   },
   itemNome: {
     flex: 1,
@@ -164,7 +245,18 @@ const styles = StyleSheet.create({
   itemPreco: {
     fontSize: 13,
     color: "#333",
-    fontWeight: "500",
+    fontWeight: "600",
+  },
+
+  // Footer
+  cardFooter: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  deliveryType: {
+    fontSize: 12,
+    color: "#666",
   },
   totalRow: {
     flexDirection: "row",
@@ -177,15 +269,12 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
   },
   totalValue: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "800",
     color: BRAND_COLOR,
   },
-  deliveryType: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#666",
-  },
+
+  // Loading centered
   centered: {
     flex: 1,
     alignItems: "center",
@@ -197,10 +286,28 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 15,
   },
+
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    gap: 8,
+  },
+  emptyIcon: {
+    fontSize: 56,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
   emptyText: {
-    color: "#666",
-    fontSize: 15,
+    fontSize: 14,
+    color: "#888",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 22,
   },
 });

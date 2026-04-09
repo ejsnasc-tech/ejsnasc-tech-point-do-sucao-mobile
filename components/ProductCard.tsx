@@ -33,18 +33,7 @@ export function ProductCard({
 }: Props) {
   return (
     <View style={styles.card}>
-      <Image
-        source={{ uri: product.img }}
-        style={styles.image}
-        resizeMode="cover"
-      />
-      <TouchableOpacity style={styles.favoriteButton} onPress={onToggleFavorite}>
-        <Ionicons
-          name={isFavorite ? "heart" : "heart-outline"}
-          size={20}
-          color={isFavorite ? BRAND_COLOR : "#999"}
-        />
-      </TouchableOpacity>
+      {/* Info à esquerda */}
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={2}>
           {product.nome}
@@ -54,22 +43,38 @@ export function ProductCard({
             {product.descricao}
           </Text>
         ) : null}
-        <View style={styles.footer}>
-          <Text style={styles.price}>{formatBRL(product.preco)}</Text>
-          <View style={styles.quantityRow}>
-            <TouchableOpacity
-              style={[styles.qtyButton, quantity === 0 && styles.qtyButtonDisabled]}
-              onPress={onRemove}
-              disabled={quantity === 0}
-            >
-              <Ionicons name="remove" size={18} color={quantity === 0 ? "#ccc" : BRAND_COLOR} />
-            </TouchableOpacity>
-            <Text style={styles.qty}>{quantity}</Text>
-            <TouchableOpacity style={styles.qtyButton} onPress={onAdd}>
-              <Ionicons name="add" size={18} color={BRAND_COLOR} />
-            </TouchableOpacity>
-          </View>
+        <Text style={styles.price}>{formatBRL(product.preco)}</Text>
+
+        {/* Botões de quantidade */}
+        <View style={styles.quantityRow}>
+          <TouchableOpacity
+            style={[styles.qtyButton, quantity === 0 && styles.qtyButtonDisabled]}
+            onPress={onRemove}
+            disabled={quantity === 0}
+          >
+            <Ionicons name="remove" size={16} color={quantity === 0 ? "#ccc" : BRAND_COLOR} />
+          </TouchableOpacity>
+          <Text style={styles.qty}>{quantity}</Text>
+          <TouchableOpacity style={styles.qtyButton} onPress={onAdd}>
+            <Ionicons name="add" size={16} color={BRAND_COLOR} />
+          </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Imagem + favorito à direita */}
+      <View style={styles.imageWrapper}>
+        <Image
+          source={{ uri: product.img }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        <TouchableOpacity style={styles.favoriteButton} onPress={onToggleFavorite}>
+          <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorite ? BRAND_COLOR : "#999"}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -78,63 +83,55 @@ export function ProductCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  image: {
-    width: "100%",
-    height: 160,
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 20,
-    padding: 6,
-  },
-  info: {
-    padding: 12,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1a1a1a",
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 13,
-    color: "#666",
-    marginBottom: 8,
-  },
-  footer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+    paddingVertical: 12,
+    paddingLeft: 14,
+    paddingRight: 12,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  info: {
+    flex: 1,
+    paddingRight: 12,
+    gap: 4,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  description: {
+    fontSize: 12,
+    color: "#888",
+    lineHeight: 17,
   },
   price: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: BRAND_COLOR,
+    marginTop: 2,
   },
   quantityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 6,
   },
   qtyButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: BRAND_COLOR,
     alignItems: "center",
     justifyContent: "center",
@@ -143,10 +140,27 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
   },
   qty: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
-    minWidth: 24,
+    minWidth: 20,
     textAlign: "center",
     color: "#1a1a1a",
+  },
+  imageWrapper: {
+    position: "relative",
+  },
+  image: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+  },
+  favoriteButton: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 20,
+    padding: 5,
+    elevation: 2,
   },
 });

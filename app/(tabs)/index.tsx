@@ -1,30 +1,31 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
-  FlatList,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   Text,
   RefreshControl,
+  TouchableOpacity,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getProducts, getCategories } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
-import { useFavorites } from "@/hooks/useFavorites";
-import { ProductCard } from "@/components/ProductCard";
-import { CategoryNav } from "@/components/CategoryNav";
 import { CartBar } from "@/components/CartBar";
 import type { Product, Category } from "@/types/product";
-import { BRAND_COLOR } from "@/constants/categories";
+import { BRAND_COLOR, CATEGORIES, CATEGORY_IMAGES } from "@/constants/categories";
+
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 export default function CardapioScreen() {
   const router = useRouter();
-  const { cart, getQuantity, updateQuantity, total, qtdTotal } = useCart();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { updateQuantity, total, qtdTotal } = useCart();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category>("Todos");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +35,10 @@ export default function CardapioScreen() {
       setError(null);
       const [prods, cats] = await Promise.all([getProducts(), getCategories()]);
       setProducts(prods);
-      const activeCatNames = cats
-        .filter((c) => c.ativo === 1)
-        .map((c) => c.nome);
+      const activeCatNames = cats.filter((c) => c.ativo === 1).map((c) => c.nome);
       setActiveCategories(activeCatNames);
     } catch {
-      setError("Não foi possível carregar o cardápio. Tente novamente.");
+      setError("Nao foi possivel carregar o cardapio. Tente novamente.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -55,18 +54,27 @@ export default function CardapioScreen() {
     void loadData();
   }, [loadData]);
 
-  const filteredProducts = products.filter((p) => {
-    const categoryMatch =
-      selectedCategory === "Todos" || p.categoria === selectedCategory;
-    const active = activeCategories.length === 0 || activeCategories.includes(p.categoria);
-    return categoryMatch && active && p.ativo !== 0 && p.ativo !== false && p.preco > 0;
-  });
+  const allActiveProducts = products.filter(
+    (p) =>
+      (activeCategories.length === 0 || activeCategories.includes(p.categoria)) &&
+      p.ativo !== 0 &&
+      p.ativo !== false &&
+      p.preco > 0
+  );
+
+  const popularProducts = allActiveProducts.filter(
+    (p) => p.popular === 1 || p.popular === true
+  );
+
+  const visibleCategories = CATEGORIES.filter(
+    (c) => c !== "Todos" && (activeCategories.length === 0 || activeCategories.includes(c))
+  );
 
   if (isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={BRAND_COLOR} />
-        <Text style={styles.loadingText}>Carregando cardápio...</Text>
+        <Text style={styles.loadingText}>Carregando cardapio...</Text>
       </View>
     );
   }
@@ -81,33 +89,8 @@ export default function CardapioScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ProductCard
-            product={item}
-            quantity={getQuantity(item.id)}
-            isFavorite={isFavorite(item.id)}
-            onAdd={() => updateQuantity(item, 1)}
-            onRemove={() => updateQuantity(item, -1)}
-            onToggleFavorite={() => toggleFavorite(item.id)}
-          />
-        )}
-        ListHeaderComponent={
-          <CategoryNav
-            selected={selectedCategory}
-            onSelect={setSelectedCategory}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>
-              Nenhum produto encontrado nessa categoria.
-            </Text>
-          </View>
-        }
-        contentContainerStyle={styles.list}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -116,7 +99,68 @@ export default function CardapioScreen() {
             tintColor={BRAND_COLOR}
           />
         }
-      />
+      >
+        {popularProducts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Text style={styles.sectionAccent}>os mais </Text>
+              <Text style={styles.sectionNormal}>vendidos</Text>
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.popularList}
+            >
+              {popularProducts.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  style={styles.popularCard}
+                  onPress={() => updateQuantity(product, 1)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.popularCircle}>
+                    <Image
+                      source={{ uri: product.img }}
+                      style={styles.popularImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <Text style={styles.popularPrice}>{formatBRL(product.preco)}</Text>
+                  <Text style={styles.popularName} numberOfLines={2}>
+                    {product.nome}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.categoriaTitle}>CATEGORIAS</Text>
+          <View style={styles.categoriaGrid}>
+            {visibleCategories.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={styles.categoriaItem}
+                onPress={() => router.push(`/categoria/${encodeURIComponent(cat)}`)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.categoriaCircle}>
+                  <Image
+                    source={{ uri: CATEGORY_IMAGES[cat as Category] }}
+                    style={styles.categoriaImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.categoriaLabel} numberOfLines={2}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
       <CartBar
         qtdTotal={qtdTotal}
         total={total}
@@ -129,10 +173,10 @@ export default function CardapioScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#f5f5f5",
   },
-  list: {
-    paddingBottom: 16,
+  scroll: {
+    paddingBottom: 80,
   },
   centered: {
     flex: 1,
@@ -146,13 +190,95 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   errorText: {
-    color: "#e63946",
+    color: BRAND_COLOR,
     fontSize: 15,
     textAlign: "center",
   },
-  emptyText: {
-    color: "#666",
-    fontSize: 15,
+  section: {
+    backgroundColor: "#fff",
+    marginBottom: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    marginBottom: 14,
+  },
+  sectionAccent: {
+    color: BRAND_COLOR,
+    fontWeight: "700",
+  },
+  sectionNormal: {
+    color: "#555",
+    fontWeight: "400",
+  },
+  popularList: {
+    gap: 16,
+    paddingRight: 4,
+  },
+  popularCard: {
+    width: 90,
+    alignItems: "center",
+  },
+  popularCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#ececec",
+  },
+  popularImage: {
+    width: "100%",
+    height: "100%",
+  },
+  popularPrice: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "700",
+    color: BRAND_COLOR,
     textAlign: "center",
+  },
+  popularName: {
+    fontSize: 11,
+    color: "#333",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  categoriaTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#888",
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  categoriaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  categoriaItem: {
+    width: "33.33%",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  categoriaCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#ececec",
+  },
+  categoriaImage: {
+    width: "100%",
+    height: "100%",
+  },
+  categoriaLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    textAlign: "center",
+    maxWidth: 90,
   },
 });

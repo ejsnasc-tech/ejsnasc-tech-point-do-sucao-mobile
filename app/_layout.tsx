@@ -56,6 +56,12 @@ function InnerLayout() {
             presentation: "modal",
           }}
         />
+        <Stack.Screen
+          name="categoria/[nome]"
+          options={({ route }) => ({
+            title: (route.params as { nome?: string })?.nome ?? "Produtos",
+          })}
+        />
       </Stack>
     </>
   );
