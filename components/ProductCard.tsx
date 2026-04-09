@@ -152,7 +152,9 @@ const styles = StyleSheet.create({
   image: {
     width: 90,
     height: 90,
-    borderRadius: 10,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: "#ececec",
   },
   favoriteButton: {
     position: "absolute",
