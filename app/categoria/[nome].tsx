@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -7,7 +7,7 @@ import {
   Text,
   RefreshControl,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getProducts, getCategories } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -44,9 +44,17 @@ export default function CategoriaScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+
+      const intervalId = setInterval(() => {
+        void loadData();
+      }, 15000);
+
+      return () => clearInterval(intervalId);
+    }, [loadData])
+  );
 
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);

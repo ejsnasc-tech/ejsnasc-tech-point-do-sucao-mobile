@@ -1,16 +1,12 @@
-export type Category =
-  | "Todos"
-  | "Pastéis"
-  | "Coxinhas"
-  | "Croquetes"
-  | "Risoles"
-  | "Salgados de Forno"
-  | "Empadas"
-  | "Caldo de Cana"
-  | "Sucos"
-  | "Sucos de Polpa"
-  | "Refrigerantes"
-  | "Bomba Baianas";
+export type Category = string;
+
+export type Bairro = {
+  id: number;
+  nome: string;
+  ativo: number;
+  taxa_entrega: number;
+  pedido_minimo: number;
+};
 
 export type Product = {
   id: number;
@@ -83,4 +79,16 @@ export type CreatePedidoPayload = {
   taxa_entrega: number;
   total: number;
   itens: PedidoItem[];
+};
+
+export type EnderecoSalvo = {
+  id: number;
+  rua: string;
+  numero: string;
+  complemento?: string | null;
+  bairro: string;
+  cidade?: string | null;
+  referencia?: string | null;
+  endereco_formatado?: string;
+  is_default: number;
 };

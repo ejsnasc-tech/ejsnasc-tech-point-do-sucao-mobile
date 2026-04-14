@@ -2,9 +2,10 @@ import type { Category } from "@/types/product";
 
 const R2_BASE = "https://images.pointdosucao.com.br";
 
-export const CATEGORIES: Category[] = [
+export const DEFAULT_CATEGORIES: Category[] = [
   "Todos",
   "Pastéis",
+  "PASTEIS DE FORNO",
   "Coxinhas",
   "Croquetes",
   "Risoles",
@@ -17,9 +18,10 @@ export const CATEGORIES: Category[] = [
   "Bomba Baianas",
 ];
 
-export const CATEGORY_IMAGES: Record<Category, string> = {
+export const CATEGORY_IMAGES: Record<string, string> = {
   Todos: `${R2_BASE}/categorias/todos.webp`,
   "Pastéis": `${R2_BASE}/categorias/pastel.webp`,
+  "PASTEIS DE FORNO": `${R2_BASE}/categorias/salgado-forno.webp`,
   "Coxinhas": `${R2_BASE}/categorias/coxinha.webp`,
   "Croquetes": `${R2_BASE}/categorias/croquete.webp`,
   "Risoles": `${R2_BASE}/categorias/risole.webp`,

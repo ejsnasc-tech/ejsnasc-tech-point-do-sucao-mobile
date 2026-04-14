@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -9,15 +9,24 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { getProducts, getCategories } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
 import { CartBar } from "@/components/CartBar";
 import type { Product, Category } from "@/types/product";
-import { BRAND_COLOR, CATEGORIES, CATEGORY_IMAGES } from "@/constants/categories";
+import { BRAND_COLOR, DEFAULT_CATEGORIES, CATEGORY_IMAGES } from "@/constants/categories";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function getVisibleCategories(activeCategories: string[]): string[] {
+  const withoutAll = activeCategories.filter((category) => category !== "Todos");
+  const defaultCategories = DEFAULT_CATEGORIES.filter((category) => category !== "Todos");
+  const knownCategories = defaultCategories.filter((category) => withoutAll.includes(category));
+  const extraCategories = withoutAll.filter((category) => !defaultCategories.includes(category));
+
+  return [...knownCategories, ...extraCategories];
 }
 
 export default function CardapioScreen() {
@@ -26,6 +35,7 @@ export default function CardapioScreen() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [categoryImages, setCategoryImages] = useState<Record<string, string>>(CATEGORY_IMAGES);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +47,17 @@ export default function CardapioScreen() {
       setProducts(prods);
       const activeCatNames = cats.filter((c) => c.ativo === 1).map((c) => c.nome);
       setActiveCategories(activeCatNames);
+      setCategoryImages((currentImages) => {
+        const nextImages = { ...currentImages };
+
+        for (const category of cats) {
+          if (category.imagem) {
+            nextImages[category.nome] = category.imagem;
+          }
+        }
+
+        return nextImages;
+      });
     } catch {
       setError("Nao foi possivel carregar o cardapio. Tente novamente.");
     } finally {
@@ -45,9 +66,17 @@ export default function CardapioScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+
+      const intervalId = setInterval(() => {
+        void loadData();
+      }, 15000);
+
+      return () => clearInterval(intervalId);
+    }, [loadData])
+  );
 
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -66,8 +95,9 @@ export default function CardapioScreen() {
     (p) => p.popular === 1 || p.popular === true
   );
 
-  const visibleCategories = CATEGORIES.filter(
-    (c) => c !== "Todos" && (activeCategories.length === 0 || activeCategories.includes(c))
+  const categoriesWithProducts = new Set(allActiveProducts.map((p) => p.categoria));
+  const visibleCategories = getVisibleCategories(activeCategories).filter(
+    (cat) => categoriesWithProducts.has(cat)
   );
 
   if (isLoading) {
@@ -120,7 +150,8 @@ export default function CardapioScreen() {
                 >
                   <View style={styles.popularCircle}>
                     <Image
-                      source={{ uri: product.img }}
+                      key={product.img || categoryImages[product.categoria] || CATEGORY_IMAGES.Todos}
+                      source={{ uri: product.img || categoryImages[product.categoria] || CATEGORY_IMAGES.Todos }}
                       style={styles.popularImage}
                       resizeMode="cover"
                     />
@@ -147,7 +178,7 @@ export default function CardapioScreen() {
               >
                 <View style={styles.categoriaCircle}>
                   <Image
-                    source={{ uri: CATEGORY_IMAGES[cat as Category] }}
+                    source={{ uri: categoryImages[cat] || CATEGORY_IMAGES.Todos }}
                     style={styles.categoriaImage}
                     resizeMode="cover"
                   />

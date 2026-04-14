@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import type { Category } from "@/types/product";
-import { CATEGORIES, CATEGORY_IMAGES, BRAND_COLOR } from "@/constants/categories";
+import { DEFAULT_CATEGORIES, CATEGORY_IMAGES, BRAND_COLOR } from "@/constants/categories";
 
 type Props = {
   selected: Category;
@@ -22,7 +22,7 @@ export function CategoryNav({ selected, onSelect }: Props) {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {CATEGORIES.map((category) => {
+      {DEFAULT_CATEGORIES.map((category) => {
         const isSelected = selected === category;
         return (
           <TouchableOpacity
@@ -32,7 +32,7 @@ export function CategoryNav({ selected, onSelect }: Props) {
           >
             <View style={[styles.imageWrapper, isSelected && styles.imageWrapperSelected]}>
               <Image
-                source={{ uri: CATEGORY_IMAGES[category] }}
+                source={{ uri: CATEGORY_IMAGES[category] || CATEGORY_IMAGES.Todos }}
                 style={styles.image}
                 resizeMode="cover"
               />

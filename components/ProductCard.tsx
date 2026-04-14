@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Product } from "@/types/product";
-import { BRAND_COLOR } from "@/constants/categories";
+import { BRAND_COLOR, CATEGORY_IMAGES } from "@/constants/categories";
 
 type Props = {
   product: Product;
@@ -31,6 +31,8 @@ export function ProductCard({
   onRemove,
   onToggleFavorite,
 }: Props) {
+  const imageUri = product.img || CATEGORY_IMAGES[product.categoria] || CATEGORY_IMAGES.Todos;
+
   return (
     <View style={styles.card}>
       {/* Info à esquerda */}
@@ -64,7 +66,8 @@ export function ProductCard({
       {/* Imagem + favorito à direita */}
       <View style={styles.imageWrapper}>
         <Image
-          source={{ uri: product.img }}
+          key={imageUri}
+          source={{ uri: imageUri, cache: "reload" }}
           style={styles.image}
           resizeMode="cover"
         />

@@ -8,14 +8,16 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Switch,
+  Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
+import type { Bairro, EnderecoSalvo } from "@/types/product";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -40,6 +42,50 @@ export default function CheckoutScreen() {
   const [trocoPara, setTrocoPara] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [bairros, setBairros] = useState<Bairro[]>([]);
+  const [bairroSelecionado, setBairroSelecionado] = useState<Bairro | null>(null);
+  const [showBairroModal, setShowBairroModal] = useState(false);
+  const [bairroSearch, setBairroSearch] = useState("");
+
+  // Saved addresses
+  const [enderecosSalvos, setEnderecosSalvos] = useState<EnderecoSalvo[]>([]);
+  const [enderecoSelecionado, setEnderecoSelecionado] = useState<EnderecoSalvo | null>(null);
+  const [showNovoEndereco, setShowNovoEndereco] = useState(false);
+  const [novoRua, setNovoRua] = useState("");
+  const [novoNumero, setNovoNumero] = useState("");
+  const [novoComplemento, setNovoComplemento] = useState("");
+  const [novoBairro, setNovoBairro] = useState("");
+  const [novoReferencia, setNovoReferencia] = useState("");
+  const [novoBairroSelecionado, setNovoBairroSelecionado] = useState<Bairro | null>(null);
+  const [showNovoBairroModal, setShowNovoBairroModal] = useState(false);
+  const [novoBairroSearch, setNovoBairroSearch] = useState("");
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  const activeBairro = enderecoSelecionado
+    ? bairros.find((b) => b.nome.toLowerCase() === enderecoSelecionado.bairro.toLowerCase()) ?? bairroSelecionado
+    : bairroSelecionado;
+  const taxaEntrega = isRetirada ? 0 : (activeBairro?.taxa_entrega ?? 0);
+  const totalComTaxa = total + taxaEntrega;
+
+  // Carrega bairros da API
+  useEffect(() => {
+    getBairros()
+      .then((data) => {
+        const ativos = data.filter((b) => b.ativo === 1);
+        ativos.sort((a, b) => a.nome.localeCompare(b.nome));
+        setBairros(ativos);
+      })
+      .catch((err) => console.warn("[Checkout] Erro ao carregar bairros:", err));
+
+    getEnderecos()
+      .then((data) => {
+        setEnderecosSalvos(data);
+        const defaultAddr = data.find((e) => e.is_default === 1);
+        if (defaultAddr) setEnderecoSelecionado(defaultAddr);
+      })
+      .catch((err) => console.warn("[Checkout] Erro ao carregar endereços:", err));
+  }, []);
+
   // Preenche campos automaticamente quando user carrega do AsyncStorage
   useEffect(() => {
     if (user) {
@@ -52,6 +98,16 @@ export default function CheckoutScreen() {
       if (!referencia) setReferencia(user.referencia || "");
     }
   }, [user]);
+
+  // Auto-seleciona o bairro salvo do usuário quando os bairros carregam
+  useEffect(() => {
+    if (bairros.length > 0 && bairro && !bairroSelecionado) {
+      const match = bairros.find(
+        (b) => b.nome.toLowerCase() === bairro.toLowerCase()
+      );
+      if (match) setBairroSelecionado(match);
+    }
+  }, [bairros, bairro]);
 
   const formasPagamento = [
     { value: "pix", label: "PIX" },
@@ -69,12 +125,12 @@ export default function CheckoutScreen() {
       Alert.alert("Atenção", "Por favor, informe seu telefone.");
       return;
     }
-    if (!isRetirada && !rua.trim()) {
-      Alert.alert("Atenção", "Por favor, informe a rua para entrega.");
+    if (!isRetirada && !enderecoSelecionado && !rua.trim()) {
+      Alert.alert("Atenção", "Por favor, selecione ou cadastre um endereço para entrega.");
       return;
     }
-    if (!isRetirada && !bairro.trim()) {
-      Alert.alert("Atenção", "Por favor, informe o bairro para entrega.");
+    if (!isRetirada && !enderecoSelecionado && !bairroSelecionado) {
+      Alert.alert("Atenção", "Por favor, selecione o bairro para entrega.");
       return;
     }
     if (cart.length === 0) {
@@ -84,20 +140,27 @@ export default function CheckoutScreen() {
 
     setIsSubmitting(true);
     try {
+      const useAddr = enderecoSelecionado;
+      const addrRua = isRetirada ? "Retirada" : (useAddr?.rua ?? rua.trim());
+      const addrNumero = isRetirada ? "0" : ((useAddr?.numero ?? numero.trim()) || "S/N");
+      const addrBairro = isRetirada ? "Centro" : (useAddr?.bairro ?? (activeBairro?.nome ?? ""));
+      const addrComplemento = isRetirada ? undefined : ((useAddr?.complemento ?? complemento.trim()) || undefined);
+      const addrReferencia = isRetirada ? undefined : ((useAddr?.referencia ?? referencia.trim()) || undefined);
+
       const enderecoEntrega = isRetirada
         ? "Retirada no local"
-        : [rua.trim(), numero.trim(), bairro.trim()].filter(Boolean).join(", ");
+        : [addrRua, addrNumero, addrBairro].filter(Boolean).join(", ");
 
       const payload = {
         cliente_nome: nome.trim(),
         cliente_telefone: telefone.trim(),
         endereco_entrega: enderecoEntrega,
-        rua: isRetirada ? "Retirada" : rua.trim(),
-        numero: isRetirada ? "0" : numero.trim() || "S/N",
-        complemento: complemento.trim() || undefined,
-        bairro: isRetirada ? "Centro" : bairro.trim(),
+        rua: addrRua,
+        numero: addrNumero,
+        complemento: addrComplemento,
+        bairro: addrBairro,
         cidade: "Estância",
-        referencia: referencia.trim() || undefined,
+        referencia: addrReferencia,
         forma_pagamento: formaPagamento,
         observacao: isRetirada
           ? [observacao.trim(), "RETIRADA NO LOCAL"].filter(Boolean).join(" - ")
@@ -107,8 +170,8 @@ export default function CheckoutScreen() {
             ? parseFloat(trocoPara)
             : undefined,
         subtotal: total,
-        taxa_entrega: 0,
-        total,
+        taxa_entrega: taxaEntrega,
+        total: totalComTaxa,
         itens: cart.map((item) => ({
           produto_id: item.id,
           nome_produto: item.nome,
@@ -126,7 +189,7 @@ export default function CheckoutScreen() {
         telefone: telefone.trim(),
         rua: isRetirada ? user?.rua : rua.trim(),
         numero: isRetirada ? user?.numero : numero.trim(),
-        bairro: isRetirada ? user?.bairro : bairro.trim(),
+        bairro: isRetirada ? user?.bairro : bairroSelecionado?.nome ?? "",
         referencia: isRetirada ? user?.referencia : referencia.trim(),
       });
       console.log("[Checkout] Dados do cliente salvos");
@@ -155,7 +218,7 @@ export default function CheckoutScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [nome, telefone, rua, numero, complemento, bairro, referencia, isRetirada, formaPagamento, observacao, precisaTroco, trocoPara, cart, total, clearCart, updateUser, user, router]);
+  }, [nome, telefone, rua, numero, complemento, bairroSelecionado, referencia, isRetirada, formaPagamento, observacao, precisaTroco, trocoPara, cart, total, taxaEntrega, totalComTaxa, clearCart, updateUser, user, router]);
 
   if (cart.length === 0) {
     return (
@@ -189,8 +252,20 @@ export default function CheckoutScreen() {
         ))}
         <View style={styles.divider} />
         <View style={styles.totalRow}>
+          <Text style={styles.subtotalLabel}>Subtotal</Text>
+          <Text style={styles.subtotalValue}>{formatBRL(total)}</Text>
+        </View>
+        {!isRetirada && (
+          <View style={styles.totalRow}>
+            <Text style={styles.subtotalLabel}>Taxa de entrega</Text>
+            <Text style={styles.subtotalValue}>
+              {taxaEntrega > 0 ? formatBRL(taxaEntrega) : bairroSelecionado ? "Grátis" : "Selecione o bairro"}
+            </Text>
+          </View>
+        )}
+        <View style={[styles.totalRow, { marginTop: 6 }]}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatBRL(total)}</Text>
+          <Text style={styles.totalValue}>{formatBRL(totalComTaxa)}</Text>
         </View>
       </View>
 
@@ -219,62 +294,200 @@ export default function CheckoutScreen() {
 
       <Text style={styles.sectionTitle}>Entrega</Text>
       <View style={styles.card}>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Retirar no local</Text>
-          <Switch
-            value={isRetirada}
-            onValueChange={setIsRetirada}
-            trackColor={{ true: BRAND_COLOR }}
-            thumbColor={isRetirada ? "#fff" : "#f4f4f4"}
-          />
+        <View style={styles.deliveryToggle}>
+          <TouchableOpacity
+            style={[styles.deliveryOption, !isRetirada && styles.deliveryOptionSelected]}
+            onPress={() => setIsRetirada(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.deliveryOptionText, !isRetirada && styles.deliveryOptionTextSelected]}>
+              Entrega
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.deliveryOption, isRetirada && styles.deliveryOptionSelected]}
+            onPress={() => setIsRetirada(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.deliveryOptionText, isRetirada && styles.deliveryOptionTextSelected]}>
+              Retirar na loja
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {!isRetirada && (
           <>
-            <View style={styles.row}>
-              <View style={styles.flex3}>
-                <Text style={styles.label}>Rua *</Text>
+            {enderecosSalvos.length > 0 && (
+              <>
+                <Text style={styles.savedAddressTitle}>ENDEREÇOS SALVOS</Text>
+                {enderecosSalvos.map((addr) => (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={[
+                      styles.savedAddressCard,
+                      enderecoSelecionado?.id === addr.id && styles.savedAddressCardSelected,
+                    ]}
+                    onPress={() => {
+                      setEnderecoSelecionado(addr);
+                      setShowNovoEndereco(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.savedAddressName}>
+                      {addr.rua}, {addr.numero}
+                    </Text>
+                    <Text style={styles.savedAddressDetail}>
+                      {addr.bairro}{addr.cidade ? ` - ${addr.cidade}` : ""}
+                    </Text>
+                    {addr.is_default === 1 && (
+                      <View style={styles.defaultBadge}>
+                        <Text style={styles.defaultBadgeText}>Padrão</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+
+            {!showNovoEndereco && (
+              <TouchableOpacity
+                style={styles.addAddressButton}
+                onPress={() => {
+                  setShowNovoEndereco(true);
+                  setEnderecoSelecionado(null);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={18} color={BRAND_COLOR} />
+                <Text style={styles.addAddressText}>Novo endereço de entrega</Text>
+              </TouchableOpacity>
+            )}
+
+            {(showNovoEndereco || enderecosSalvos.length === 0) && (
+              <>
+                <View style={styles.row}>
+                  <View style={styles.flex3}>
+                    <Text style={styles.label}>Rua *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Rua"
+                      value={showNovoEndereco ? novoRua : rua}
+                      onChangeText={showNovoEndereco ? setNovoRua : setRua}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View style={styles.flex1}>
+                    <Text style={styles.label}>Nº</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Nº"
+                      value={showNovoEndereco ? novoNumero : numero}
+                      onChangeText={showNovoEndereco ? setNovoNumero : setNumero}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+                <Text style={styles.label}>Complemento</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Rua"
-                  value={rua}
-                  onChangeText={setRua}
-                  autoCapitalize="words"
+                  placeholder="Apto, bloco... (opcional)"
+                  value={showNovoEndereco ? novoComplemento : complemento}
+                  onChangeText={showNovoEndereco ? setNovoComplemento : setComplemento}
                 />
-              </View>
-              <View style={styles.flex1}>
-                <Text style={styles.label}>Nº</Text>
+                <Text style={styles.label}>Bairro *</Text>
+                <TouchableOpacity
+                  style={styles.bairroSelector}
+                  onPress={() => showNovoEndereco ? setShowNovoBairroModal(true) : setShowBairroModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.bairroSelectorText,
+                      !(showNovoEndereco ? novoBairroSelecionado : bairroSelecionado) && styles.bairroSelectorPlaceholder,
+                    ]}
+                  >
+                    {(showNovoEndereco ? novoBairroSelecionado : bairroSelecionado)
+                      ? `${(showNovoEndereco ? novoBairroSelecionado : bairroSelecionado)!.nome} — ${formatBRL((showNovoEndereco ? novoBairroSelecionado : bairroSelecionado)!.taxa_entrega)}`
+                      : "Selecione o bairro"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#888" />
+                </TouchableOpacity>
+                <Text style={styles.label}>Referência</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Nº"
-                  value={numero}
-                  onChangeText={setNumero}
-                  keyboardType="numeric"
+                  placeholder="Ponto de referência (opcional)"
+                  value={showNovoEndereco ? novoReferencia : referencia}
+                  onChangeText={showNovoEndereco ? setNovoReferencia : setReferencia}
                 />
-              </View>
-            </View>
-            <Text style={styles.label}>Complemento</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Apto, bloco... (opcional)"
-              value={complemento}
-              onChangeText={setComplemento}
-            />
-            <Text style={styles.label}>Bairro *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Bairro"
-              value={bairro}
-              onChangeText={setBairro}
-              autoCapitalize="words"
-            />
-            <Text style={styles.label}>Referência</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ponto de referência (opcional)"
-              value={referencia}
-              onChangeText={setReferencia}
-            />
+
+                {showNovoEndereco && (
+                  <View style={styles.newAddressActions}>
+                    <TouchableOpacity
+                      style={styles.saveAddressButton}
+                      onPress={async () => {
+                        const r = novoRua.trim();
+                        const n = novoNumero.trim();
+                        const b = novoBairroSelecionado?.nome ?? novoBairro.trim();
+                        if (!r || !n || !b) {
+                          Alert.alert("Atenção", "Rua, número e bairro são obrigatórios.");
+                          return;
+                        }
+                        setIsSavingAddress(true);
+                        try {
+                          const saved = await createEndereco({
+                            rua: r,
+                            numero: n,
+                            complemento: novoComplemento.trim() || undefined,
+                            bairro: b,
+                            cidade: "Estância",
+                            referencia: novoReferencia.trim() || undefined,
+                          });
+                          setEnderecosSalvos((prev) => [...prev, saved]);
+                          setEnderecoSelecionado(saved);
+                          setShowNovoEndereco(false);
+                          setNovoRua("");
+                          setNovoNumero("");
+                          setNovoComplemento("");
+                          setNovoBairro("");
+                          setNovoReferencia("");
+                          setNovoBairroSelecionado(null);
+                        } catch {
+                          Alert.alert("Erro", "Não foi possível salvar o endereço.");
+                        } finally {
+                          setIsSavingAddress(false);
+                        }
+                      }}
+                      disabled={isSavingAddress}
+                      activeOpacity={0.7}
+                    >
+                      {isSavingAddress ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.saveAddressButtonText}>Salvar endereço</Text>
+                      )}
+                    </TouchableOpacity>
+                    {enderecosSalvos.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.cancelAddressButton}
+                        onPress={() => {
+                          setShowNovoEndereco(false);
+                          const defaultAddr = enderecosSalvos.find((e) => e.is_default === 1) ?? enderecosSalvos[0];
+                          if (defaultAddr) setEnderecoSelecionado(defaultAddr);
+                        }}
+                      >
+                        <Text style={styles.cancelAddressText}>Cancelar</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            {enderecoSelecionado && activeBairro && (
+              <Text style={styles.taxaInfo}>
+                Taxa de entrega: {activeBairro.taxa_entrega > 0 ? formatBRL(activeBairro.taxa_entrega) : "Grátis"}
+              </Text>
+            )}
           </>
         )}
       </View>
@@ -359,6 +572,138 @@ export default function CheckoutScreen() {
           <Text style={styles.submitButtonText}>Fazer Pedido 🛒</Text>
         )}
       </TouchableOpacity>
+
+      {/* Modal de seleção de bairro */}
+      <Modal
+        visible={showBairroModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowBairroModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o bairro</Text>
+              <TouchableOpacity onPress={() => setShowBairroModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalSearch}
+              placeholder="Buscar bairro..."
+              value={bairroSearch}
+              onChangeText={setBairroSearch}
+              autoCapitalize="none"
+            />
+            <FlatList
+              data={bairros.filter((b) =>
+                b.nome.toLowerCase().includes(bairroSearch.toLowerCase())
+              )}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    bairroSelecionado?.id === item.id && styles.modalItemSelected,
+                  ]}
+                  onPress={() => {
+                    setBairroSelecionado(item);
+                    setBairro(item.nome);
+                    setShowBairroModal(false);
+                    setBairroSearch("");
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      bairroSelecionado?.id === item.id && styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {item.nome}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.modalItemTaxa,
+                      bairroSelecionado?.id === item.id && styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {item.taxa_entrega > 0 ? formatBRL(item.taxa_entrega) : "Grátis"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.modalEmpty}>Nenhum bairro encontrado</Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de seleção de bairro para novo endereço */}
+      <Modal
+        visible={showNovoBairroModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowNovoBairroModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione o bairro</Text>
+              <TouchableOpacity onPress={() => setShowNovoBairroModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalSearch}
+              placeholder="Buscar bairro..."
+              value={novoBairroSearch}
+              onChangeText={setNovoBairroSearch}
+              autoCapitalize="none"
+            />
+            <FlatList
+              data={bairros.filter((b) =>
+                b.nome.toLowerCase().includes(novoBairroSearch.toLowerCase())
+              )}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    novoBairroSelecionado?.id === item.id && styles.modalItemSelected,
+                  ]}
+                  onPress={() => {
+                    setNovoBairroSelecionado(item);
+                    setNovoBairro(item.nome);
+                    setShowNovoBairroModal(false);
+                    setNovoBairroSearch("");
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalItemText,
+                      novoBairroSelecionado?.id === item.id && styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {item.nome}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.modalItemTaxa,
+                      novoBairroSelecionado?.id === item.id && styles.modalItemTextSelected,
+                    ]}
+                  >
+                    {item.taxa_entrega > 0 ? formatBRL(item.taxa_entrega) : "Grátis"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.modalEmpty}>Nenhum bairro encontrado</Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -529,5 +874,223 @@ const styles = StyleSheet.create({
   paymentOptionTextSelected: {
     color: BRAND_COLOR,
     fontWeight: "700",
+  },
+  subtotalLabel: {
+    fontSize: 13,
+    color: "#888",
+  },
+  subtotalValue: {
+    fontSize: 13,
+    color: "#888",
+  },
+  bairroSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#fafafa",
+  },
+  bairroSelectorText: {
+    fontSize: 15,
+    color: "#1a1a1a",
+    flex: 1,
+  },
+  bairroSelectorPlaceholder: {
+    color: "#aaa",
+  },
+  taxaInfo: {
+    fontSize: 12,
+    color: BRAND_COLOR,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  modalSearch: {
+    margin: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    backgroundColor: "#fafafa",
+  },
+  modalItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f5f5f5",
+  },
+  modalItemSelected: {
+    backgroundColor: "#fff0f0",
+  },
+  modalItemText: {
+    fontSize: 15,
+    color: "#333",
+    flex: 1,
+  },
+  modalItemTaxa: {
+    fontSize: 14,
+    color: BRAND_COLOR,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  modalItemTextSelected: {
+    color: BRAND_COLOR,
+    fontWeight: "700",
+  },
+  modalEmpty: {
+    textAlign: "center",
+    color: "#999",
+    padding: 20,
+    fontSize: 14,
+  },
+  deliveryToggle: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  deliveryOption: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#fafafa",
+  },
+  deliveryOptionSelected: {
+    borderColor: BRAND_COLOR,
+    backgroundColor: "#fff0f0",
+  },
+  deliveryOptionText: {
+    fontSize: 15,
+    color: "#666",
+    fontWeight: "600",
+  },
+  deliveryOptionTextSelected: {
+    color: BRAND_COLOR,
+    fontWeight: "700",
+  },
+  savedAddressTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#888",
+    letterSpacing: 0.5,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  savedAddressCard: {
+    borderWidth: 1.5,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 8,
+    backgroundColor: "#fafafa",
+  },
+  savedAddressCardSelected: {
+    borderColor: BRAND_COLOR,
+    backgroundColor: "#fff0f0",
+  },
+  savedAddressName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  savedAddressDetail: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 2,
+  },
+  defaultBadge: {
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+  defaultBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  addAddressButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    borderStyle: "dashed",
+    paddingVertical: 14,
+    marginTop: 4,
+    gap: 6,
+  },
+  addAddressText: {
+    fontSize: 14,
+    color: BRAND_COLOR,
+    fontWeight: "600",
+  },
+  newAddressActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+  },
+  saveAddressButton: {
+    flex: 1,
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  saveAddressButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  cancelAddressButton: {
+    borderWidth: 1.5,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  cancelAddressText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

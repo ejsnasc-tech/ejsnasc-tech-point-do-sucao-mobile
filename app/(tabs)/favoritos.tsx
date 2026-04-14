@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
 import { getProducts } from "@/lib/api";
@@ -31,9 +32,17 @@ export default function FavoritosScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadProducts();
-  }, [loadProducts]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadProducts();
+
+      const intervalId = setInterval(() => {
+        void loadProducts();
+      }, 15000);
+
+      return () => clearInterval(intervalId);
+    }, [loadProducts])
+  );
 
   const favoriteProducts = allProducts.filter((p) => isFavorite(p.id) && p.preco > 0);
 

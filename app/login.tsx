@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import { registerUser, loginUser, sendVerificationCode } from "@/lib/api";
+import { registerUser, loginUser, sendVerificationCode, forgotPassword, resetPassword } from "@/lib/api";
 import { BRAND_COLOR, BRAND_COLOR_DARK, BRAND_SECONDARY } from "@/constants/categories";
 
 function getPasswordStrength(senha: string): { label: string; color: string } {
@@ -54,6 +54,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
 
   const [isRegister, setIsRegister] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Verification step
@@ -62,8 +63,15 @@ export default function LoginScreen() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login fields
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginTelefone, setLoginTelefone] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
+
+  // Forgot password fields
+  const [forgotTelefone, setForgotTelefone] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotStep, setForgotStep] = useState<"phone" | "code" | "done">("phone");
 
   // Register fields
   const [nome, setNome] = useState("");
@@ -79,7 +87,6 @@ export default function LoginScreen() {
 
   // Touch tracking for email validation
   const [emailTouched, setEmailTouched] = useState(false);
-  const [loginEmailTouched, setLoginEmailTouched] = useState(false);
 
   const passwordStrength = getPasswordStrength(senha);
 
@@ -189,8 +196,8 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (!loginEmail.trim() || !isValidEmail(loginEmail)) {
-      Alert.alert("Atenção", "Por favor, informe um email válido.");
+    if (!isValidPhone(loginTelefone)) {
+      Alert.alert("Atenção", "Informe um telefone válido com DDD.");
       return;
     }
     if (!loginSenha.trim()) {
@@ -201,13 +208,11 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       const data = await loginUser({
-        email: loginEmail.trim().toLowerCase(),
+        telefone: getPhoneDigits(loginTelefone),
         password: loginSenha,
       });
 
-      console.log("[Login] API response:", JSON.stringify(data));
       const cliente = data.cliente;
-      console.log("[Login] cliente object:", JSON.stringify(cliente));
       await login({
         nome: cliente.cliente_nome,
         telefone: cliente.cliente_telefone,
@@ -221,12 +226,202 @@ export default function LoginScreen() {
 
       router.replace("/(tabs)");
     } catch (err: any) {
-      console.log("LOGIN ERROR:", err?.message || err);
-      Alert.alert("Erro", err?.message || "Email ou senha inválidos.");
+      Alert.alert("Erro", err?.message || "Telefone ou senha inválidos.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleForgotPassword = async () => {
+    if (forgotStep === "phone") {
+      if (!isValidPhone(forgotTelefone)) {
+        Alert.alert("Atenção", "Informe um telefone válido com DDD.");
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        await forgotPassword(getPhoneDigits(forgotTelefone));
+        setForgotStep("code");
+        startResendCooldown();
+        Alert.alert("Código enviado", "Um código foi enviado por SMS para seu telefone.");
+      } catch {
+        Alert.alert("Erro", "Não foi possível enviar o código. Verifique o telefone.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (forgotStep === "code") {
+      if (forgotCode.length !== 6) {
+        Alert.alert("Atenção", "Digite o código de 6 dígitos.");
+        return;
+      }
+      if (forgotNewPassword.length < 6) {
+        Alert.alert("Atenção", "A nova senha deve ter pelo menos 6 caracteres.");
+        return;
+      }
+      if (forgotNewPassword !== forgotConfirmPassword) {
+        Alert.alert("Atenção", "As senhas não coincidem.");
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        await resetPassword({
+          telefone: getPhoneDigits(forgotTelefone),
+          code: forgotCode,
+          new_password: forgotNewPassword,
+        });
+        Alert.alert("Sucesso", "Senha redefinida com sucesso! Faça login.");
+        setIsForgotPassword(false);
+        setForgotStep("phone");
+        setForgotTelefone("");
+        setForgotCode("");
+        setForgotNewPassword("");
+        setForgotConfirmPassword("");
+      } catch {
+        Alert.alert("Erro", "Código inválido ou expirado. Tente novamente.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleResendForgotCode = async () => {
+    if (resendCooldown > 0) return;
+    setIsSubmitting(true);
+    try {
+      await forgotPassword(getPhoneDigits(forgotTelefone));
+      startResendCooldown();
+      Alert.alert("Código reenviado", "Um novo código foi enviado para seu telefone.");
+    } catch {
+      Alert.alert("Erro", "Não foi possível reenviar o código.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isForgotPassword) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            <View style={styles.headerInCard}>
+              <Image
+                source={require("@/assets/images/logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text style={styles.titleLogin}>Esqueci minha senha</Text>
+              <Text style={styles.subtitleLogin}>
+                {forgotStep === "phone"
+                  ? "Digite seu telefone cadastrado. Enviaremos um código por SMS."
+                  : "Digite o código recebido e sua nova senha."}
+              </Text>
+            </View>
+
+            {forgotStep === "phone" && (
+              <>
+                <Text style={styles.label}>Telefone</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    forgotTelefone.length > 0 && !isValidPhone(forgotTelefone) && styles.inputError,
+                    forgotTelefone.length > 0 && isValidPhone(forgotTelefone) && styles.inputSuccess,
+                  ]}
+                  placeholder="(79) 99988-7188"
+                  value={forgotTelefone}
+                  onChangeText={(text) => setForgotTelefone(formatPhone(text))}
+                  keyboardType="phone-pad"
+                  maxLength={15}
+                />
+              </>
+            )}
+
+            {forgotStep === "code" && (
+              <>
+                <Text style={styles.label}>Código de verificação</Text>
+                <TextInput
+                  style={[styles.input, styles.codeInput]}
+                  placeholder="000000"
+                  value={forgotCode}
+                  onChangeText={(t) => setForgotCode(t.replace(/\D/g, "").slice(0, 6))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <TouchableOpacity
+                  style={styles.resendButton}
+                  onPress={handleResendForgotCode}
+                  disabled={resendCooldown > 0}
+                >
+                  <Text style={[styles.resendText, resendCooldown > 0 && { color: "#999" }]}>
+                    {resendCooldown > 0
+                      ? `Reenviar código em ${resendCooldown}s`
+                      : "Reenviar código"}
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={styles.label}>Nova Senha</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mínimo 6 caracteres"
+                  value={forgotNewPassword}
+                  onChangeText={setForgotNewPassword}
+                  secureTextEntry
+                />
+
+                <Text style={styles.label}>Confirmar Nova Senha</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Repita a nova senha"
+                  value={forgotConfirmPassword}
+                  onChangeText={setForgotConfirmPassword}
+                  secureTextEntry
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleForgotPassword}
+              disabled={isSubmitting}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitText}>
+                  {forgotStep === "phone" ? "Enviar Código" : "Redefinir Senha"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.toggleButtonInCard}
+              onPress={() => {
+                setIsForgotPassword(false);
+                setForgotStep("phone");
+                setForgotTelefone("");
+                setForgotCode("");
+                setForgotNewPassword("");
+                setForgotConfirmPassword("");
+              }}
+            >
+              <Text style={styles.toggleTextNormal}>
+                Lembrou a senha?{" "}
+                <Text style={styles.toggleTextBold}>Fazer login</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   if (!isRegister) {
     return (
@@ -249,24 +444,20 @@ export default function LoginScreen() {
               <Text style={styles.subtitleLogin}>Faça login na sua conta</Text>
             </View>
 
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>Telefone</Text>
             <TextInput
               style={[
                 styles.input,
-                loginEmailTouched && loginEmail.length > 0 && !isValidEmail(loginEmail) && styles.inputError,
+                loginTelefone.length > 0 && !isValidPhone(loginTelefone) && styles.inputError,
+                loginTelefone.length > 0 && isValidPhone(loginTelefone) && styles.inputSuccess,
               ]}
-              placeholder="seu@email.com"
-              value={loginEmail}
-              onChangeText={setLoginEmail}
-              onBlur={() => setLoginEmailTouched(true)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
+              placeholder="(79) 99988-7188"
+              value={loginTelefone}
+              onChangeText={(text) => setLoginTelefone(formatPhone(text))}
+              keyboardType="phone-pad"
+              maxLength={15}
               returnKeyType="next"
             />
-            {loginEmailTouched && loginEmail.length > 0 && !isValidEmail(loginEmail) && (
-              <Text style={styles.errorHint}>Email inválido. Verifique o formato.</Text>
-            )}
 
             <Text style={styles.label}>Senha</Text>
             <TextInput
@@ -291,7 +482,10 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.forgotButton}>
+            <TouchableOpacity
+              style={styles.forgotButton}
+              onPress={() => setIsForgotPassword(true)}
+            >
               <Text style={styles.forgotText}>Esqueci minha senha</Text>
             </TouchableOpacity>
 

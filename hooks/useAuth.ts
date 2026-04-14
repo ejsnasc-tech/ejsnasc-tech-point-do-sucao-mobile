@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useContext, useRef, createContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearSession } from "@/lib/api";
 
 const AUTH_KEY = "@pointdosucao:auth";
 
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userRef.current = null;
     await AsyncStorage.removeItem(AUTH_KEY);
     await AsyncStorage.removeItem("@pointdosucao:cliente_info");
+    await clearSession();
   }, []);
 
   const updateUser = useCallback(
