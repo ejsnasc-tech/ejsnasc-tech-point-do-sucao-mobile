@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BRAND_COLOR } from "@/constants/categories";
@@ -25,6 +25,7 @@ export function useOrders() {
 
 export default function TabsLayout() {
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   const polling = useOrderPolling({
     telefone: user?.telefone,
@@ -42,6 +43,10 @@ export default function TabsLayout() {
         onPress: () => logout(),
       },
     ]);
+  };
+
+  const handleLogin = () => {
+    router.push("/login");
   };
 
   return (
@@ -63,9 +68,15 @@ export default function TabsLayout() {
         headerTintColor: "#fff",
         headerTitleStyle: { fontWeight: "700" },
         headerRight: () => (
-          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
-            <Ionicons name="log-out-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+          user ? (
+            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
+              <Ionicons name="log-out-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={handleLogin} style={{ marginRight: 16 }}>
+              <Ionicons name="log-in-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          )
         ),
       }}
     >

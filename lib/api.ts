@@ -137,9 +137,11 @@ export async function loginUser(payload: {
   password: string;
 }): Promise<{
   cliente: {
-    id: number;
+    id?: number;
     cliente_nome: string;
-    cliente_telefone: string;
+    /** Pode vir como `telefone` (atual) ou `cliente_telefone` (legado). Sempre formatado. */
+    cliente_telefone?: string;
+    telefone?: string;
     email: string;
     rua?: string;
     numero?: string;

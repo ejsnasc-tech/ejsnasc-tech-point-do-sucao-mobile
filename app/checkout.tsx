@@ -17,6 +17,7 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { createPedido, getBairros, getEnderecos, createEndereco } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
+import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
 
 function formatBRL(value: number): string {
@@ -24,6 +25,24 @@ function formatBRL(value: number): string {
 }
 
 export default function CheckoutScreen() {
+  const { user } = useAuth();
+
+  // Bloqueia acesso ao checkout para convidados: precisa estar logado para
+  // fazer pedido (mesma regra do site).
+  if (!user) {
+    return (
+      <LoginGate
+        title="Quase lá!"
+        message="Para finalizar seu pedido, entre na sua conta ou crie uma agora."
+        redirectTo="/checkout"
+      />
+    );
+  }
+
+  return <CheckoutForm />;
+}
+
+function CheckoutForm() {
   const router = useRouter();
   const { cart, total, clearCart, removeItem } = useCart();
   const { user, updateUser } = useAuth();

@@ -30,8 +30,28 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
       }
 
       setIsLoading(true);
-      console.log("[Pedidos] Buscando pedidos para:", tel);
-      const fetchedOrders = await getPedidos(tel);
+      // Pedidos antigos (do site) podem estar salvos com telefone formatado
+      // ex: "(79) 99602-5950". Pedidos novos (do app) ficam só com dígitos.
+      // Para juntar tudo, consultamos os dois formatos e mesclamos por id.
+      const digits = tel.replace(/\D/g, "");
+      const formatted = digits.length === 11
+        ? `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+        : digits.length === 10
+          ? `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+          : tel;
+      const queries = Array.from(new Set([tel, digits, formatted].filter(Boolean)));
+      console.log("[Pedidos] Buscando pedidos para:", queries.join(" | "));
+      const results = await Promise.all(
+        queries.map((q) => getPedidos(q).catch((e) => {
+          console.log("[Pedidos] Erro consulta", q, e);
+          return [] as Pedido[];
+        }))
+      );
+      const merged = Array.from(
+        new Map(results.flat().map((o) => [o.id, o])).values()
+      );
+      merged.sort((a, b) => b.id - a.id);
+      const fetchedOrders = merged;
       console.log("[Pedidos] Encontrados:", fetchedOrders.length, "pedidos");
       setOrders(fetchedOrders);
 

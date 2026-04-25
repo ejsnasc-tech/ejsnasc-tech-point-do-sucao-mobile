@@ -13,10 +13,24 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_COLOR } from "@/constants/categories";
+import { LoginGate } from "@/components/LoginGate";
 
 export default function PerfilScreen() {
   const { user, updateUser, logout } = useAuth();
 
+  if (!user) {
+    return (
+      <LoginGate
+        title="Minha Conta"
+        message="Entre para ver e editar suas informações pessoais e endereços."
+      />
+    );
+  }
+  return <PerfilForm />;
+}
+
+function PerfilForm() {
+  const { user, updateUser, logout } = useAuth();
   const [nome, setNome] = useState(user?.nome ?? "");
   const [telefone, setTelefone] = useState(user?.telefone ?? "");
   const [email] = useState(user?.email ?? "");

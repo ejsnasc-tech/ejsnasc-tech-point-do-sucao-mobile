@@ -9,7 +9,9 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useOrders } from "./_layout";
+import { useAuth } from "@/hooks/useAuth";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { LoginGate } from "@/components/LoginGate";
 import type { Pedido } from "@/types/product";
 import { BRAND_COLOR } from "@/constants/categories";
 
@@ -93,14 +95,24 @@ function ListHeader({ count }: { count: number }) {
 }
 
 export default function PedidosScreen() {
+  const { user } = useAuth();
   const { orders, isLoading, refetch } = useOrders();
 
   // Refetch orders every time this tab gains focus
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      if (user) refetch();
+    }, [refetch, user])
   );
+
+  if (!user) {
+    return (
+      <LoginGate
+        title="Meus Pedidos"
+        message="Entre na sua conta para acompanhar seus pedidos em tempo real."
+      />
+    );
+  }
 
   if (isLoading && orders.length === 0) {
     return (

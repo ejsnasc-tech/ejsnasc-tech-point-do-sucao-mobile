@@ -22,9 +22,10 @@ function InnerLayout() {
 
     const inAuthScreen = segments[0] === "login";
 
-    if (!user && !inAuthScreen) {
-      router.replace("/login");
-    } else if (user && inAuthScreen) {
+    // Quando já está logado e tenta abrir a tela de login, redireciona pras tabs.
+    // Convidados (sem user) podem navegar livremente pelo cardápio; o gate de
+    // login é aplicado nas telas que exigem conta (checkout, pedidos, perfil).
+    if (user && inAuthScreen) {
       router.replace("/(tabs)");
     }
   }, [user, isLoading, segments]);

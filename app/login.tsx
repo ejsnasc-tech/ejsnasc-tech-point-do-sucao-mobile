@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,10 +12,14 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser, loginUser, sendVerificationCode, forgotPassword, resetPassword } from "@/lib/api";
 import { BRAND_COLOR, BRAND_COLOR_DARK, BRAND_SECONDARY } from "@/constants/categories";
+
+const REMEMBER_KEY = "@pointdosucao:remember_login";
 
 function getPasswordStrength(senha: string): { label: string; color: string } {
   if (senha.length < 6) return { label: "", color: "transparent" };
@@ -51,7 +55,16 @@ function isValidPhone(value: string): boolean {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { login } = useAuth();
+
+  const goAfterAuth = () => {
+    if (redirect && typeof redirect === "string" && redirect.startsWith("/")) {
+      router.replace(redirect as any);
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
 
   const [isRegister, setIsRegister] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -65,6 +78,25 @@ export default function LoginScreen() {
   // Login fields
   const [loginTelefone, setLoginTelefone] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+
+  // Carrega telefone salvo (se o usuário marcou "Lembrar meus dados" antes)
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(REMEMBER_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw) as { telefone?: string };
+          if (saved?.telefone) {
+            setLoginTelefone(formatPhone(saved.telefone));
+            setRememberMe(true);
+          }
+        }
+      } catch {
+        // ignora
+      }
+    })();
+  }, []);
 
   // Forgot password fields
   const [forgotTelefone, setForgotTelefone] = useState("");
@@ -119,7 +151,7 @@ export default function LoginScreen() {
         await sendVerificationCode(getPhoneDigits(telefone));
         setVerificationStep(true);
         startResendCooldown();
-        Alert.alert("Código enviado", "Um código de verificação foi enviado para seu telefone.");
+        Alert.alert("Código enviado", "Um código de verificação foi enviado pelo WhatsApp para seu telefone.");
       } catch {
         Alert.alert("Erro", "Não foi possível enviar o código de verificação. Verifique o telefone.");
       } finally {
@@ -160,7 +192,7 @@ export default function LoginScreen() {
         referencia: referencia.trim() || undefined,
       });
 
-      router.replace("/(tabs)");
+      goAfterAuth();
     } catch {
       Alert.alert("Erro", "Não foi possível criar sua conta. Verifique o código e tente novamente.");
     } finally {
@@ -187,7 +219,7 @@ export default function LoginScreen() {
     try {
       await sendVerificationCode(getPhoneDigits(telefone));
       startResendCooldown();
-      Alert.alert("Código reenviado", "Um novo código foi enviado para seu telefone.");
+      Alert.alert("Código reenviado", "Um novo código foi enviado pelo WhatsApp para seu telefone.");
     } catch {
       Alert.alert("Erro", "Não foi possível reenviar o código.");
     } finally {
@@ -213,9 +245,13 @@ export default function LoginScreen() {
       });
 
       const cliente = data.cliente;
+      // A API retorna o telefone no campo `telefone` (formatado, ex: "(79) 99602-5950").
+      // Mantemos apenas dígitos para uso interno (consultas, etc.).
+      const telefoneRaw = cliente.cliente_telefone ?? cliente.telefone ?? "";
+      const telefoneDigits = getPhoneDigits(telefoneRaw);
       await login({
         nome: cliente.cliente_nome,
-        telefone: cliente.cliente_telefone,
+        telefone: telefoneDigits,
         email: cliente.email,
         rua: cliente.rua,
         numero: cliente.numero,
@@ -224,7 +260,22 @@ export default function LoginScreen() {
         referencia: cliente.referencia,
       });
 
-      router.replace("/(tabs)");
+      // Salva ou limpa o telefone lembrado conforme a escolha do usuário.
+      // Senha NUNCA é armazenada por motivos de segurança.
+      try {
+        if (rememberMe) {
+          await AsyncStorage.setItem(
+            REMEMBER_KEY,
+            JSON.stringify({ telefone: telefoneDigits })
+          );
+        } else {
+          await AsyncStorage.removeItem(REMEMBER_KEY);
+        }
+      } catch {
+        // ignora
+      }
+
+      goAfterAuth();
     } catch (err: any) {
       Alert.alert("Erro", err?.message || "Telefone ou senha inválidos.");
     } finally {
@@ -243,7 +294,7 @@ export default function LoginScreen() {
         await forgotPassword(getPhoneDigits(forgotTelefone));
         setForgotStep("code");
         startResendCooldown();
-        Alert.alert("Código enviado", "Um código foi enviado por SMS para seu telefone.");
+        Alert.alert("Código enviado", "Um código foi enviado pelo WhatsApp para seu telefone.");
       } catch {
         Alert.alert("Erro", "Não foi possível enviar o código. Verifique o telefone.");
       } finally {
@@ -290,7 +341,7 @@ export default function LoginScreen() {
     try {
       await forgotPassword(getPhoneDigits(forgotTelefone));
       startResendCooldown();
-      Alert.alert("Código reenviado", "Um novo código foi enviado para seu telefone.");
+      Alert.alert("Código reenviado", "Um novo código foi enviado pelo WhatsApp para seu telefone.");
     } catch {
       Alert.alert("Erro", "Não foi possível reenviar o código.");
     } finally {
@@ -318,7 +369,7 @@ export default function LoginScreen() {
               <Text style={styles.titleLogin}>Esqueci minha senha</Text>
               <Text style={styles.subtitleLogin}>
                 {forgotStep === "phone"
-                  ? "Digite seu telefone cadastrado. Enviaremos um código por SMS."
+                  ? "Digite seu telefone cadastrado. Enviaremos um código pelo WhatsApp."
                   : "Digite o código recebido e sua nova senha."}
               </Text>
             </View>
@@ -468,6 +519,19 @@ export default function LoginScreen() {
               secureTextEntry
               returnKeyType="done"
             />
+
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberMe((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe && (
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                )}
+              </View>
+              <Text style={styles.rememberText}>Lembrar meu telefone</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
@@ -658,9 +722,9 @@ export default function LoginScreen() {
           {verificationStep && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionTitle}>Verificação por SMS</Text>
+              <Text style={styles.sectionTitle}>Verificação por WhatsApp</Text>
               <Text style={styles.verificationHint}>
-                Digite o código de 6 dígitos enviado para {telefone}
+                Digite o código de 6 dígitos enviado pelo WhatsApp para {telefone}
               </Text>
               <TextInput
                 style={[styles.input, styles.codeInput]}
@@ -882,6 +946,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 16,
     paddingVertical: 4,
+  },
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BRAND_COLOR,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    backgroundColor: "#fff",
+  },
+  checkboxChecked: {
+    backgroundColor: BRAND_COLOR,
+  },
+  rememberText: {
+    fontSize: 14,
+    color: "#444",
+    fontWeight: "600",
   },
   forgotText: {
     color: BRAND_COLOR,
