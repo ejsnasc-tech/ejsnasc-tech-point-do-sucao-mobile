@@ -18,6 +18,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser, loginUser, sendVerificationCode, forgotPassword, resetPassword } from "@/lib/api";
 import { BRAND_COLOR, BRAND_COLOR_DARK, BRAND_SECONDARY } from "@/constants/categories";
+import { BairroPicker } from "@/components/BairroPicker";
+import type { Bairro } from "@/types/product";
 
 const REMEMBER_KEY = "@pointdosucao:remember_login";
 
@@ -120,27 +122,46 @@ export default function LoginScreen() {
   // Touch tracking for email validation
   const [emailTouched, setEmailTouched] = useState(false);
 
+  // Indica que o usuário já tentou submeter o cadastro — ativa marcação
+  // visual nos campos obrigatórios em branco.
+  const [registerSubmitted, setRegisterSubmitted] = useState(false);
+
   const passwordStrength = getPasswordStrength(senha);
 
+  // Coleta erros de cada campo obrigatório.
+  // Retorna lista vazia quando tudo está válido.
+  const getRegisterErrors = (): { field: string; message: string }[] => {
+    const errs: { field: string; message: string }[] = [];
+    if (!nome.trim()) errs.push({ field: "nome", message: "Nome completo" });
+    if (!isValidPhone(telefone))
+      errs.push({ field: "telefone", message: "Telefone válido com DDD" });
+    if (!email.trim() || !isValidEmail(email))
+      errs.push({ field: "email", message: "Email válido" });
+    if (senha.length < 6)
+      errs.push({ field: "senha", message: "Senha (mínimo 6 caracteres)" });
+    if (!confirmarSenha)
+      errs.push({ field: "confirmarSenha", message: "Confirmação de senha" });
+    else if (senha !== confirmarSenha)
+      errs.push({ field: "confirmarSenha", message: "As senhas devem coincidir" });
+    if (!rua.trim()) errs.push({ field: "rua", message: "Rua" });
+    if (!numero.trim()) errs.push({ field: "numero", message: "Número" });
+    if (!bairro.trim()) errs.push({ field: "bairro", message: "Bairro" });
+    return errs;
+  };
+
+  const registerErrors = registerSubmitted ? getRegisterErrors() : [];
+  const hasFieldError = (field: string) =>
+    registerErrors.some((e) => e.field === field);
+
   const handleRegister = async () => {
-    if (!nome.trim()) {
-      Alert.alert("Atenção", "Por favor, informe seu nome.");
-      return;
-    }
-    if (!isValidPhone(telefone)) {
-      Alert.alert("Atenção", "Informe um telefone válido com DDD. Ex: (79) 99988-7188");
-      return;
-    }
-    if (!email.trim() || !isValidEmail(email)) {
-      Alert.alert("Atenção", "Por favor, informe um email válido.");
-      return;
-    }
-    if (senha.length < 6) {
-      Alert.alert("Atenção", "A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
-    if (senha !== confirmarSenha) {
-      Alert.alert("Atenção", "As senhas não coincidem.");
+    setRegisterSubmitted(true);
+    const errs = getRegisterErrors();
+    if (errs.length > 0) {
+      const lista = errs.map((e) => `• ${e.message}`).join("\n");
+      Alert.alert(
+        "Preencha os campos abaixo",
+        `Faltam as seguintes informações:\n\n${lista}`
+      );
       return;
     }
 
@@ -193,8 +214,11 @@ export default function LoginScreen() {
       });
 
       goAfterAuth();
-    } catch {
-      Alert.alert("Erro", "Não foi possível criar sua conta. Verifique o código e tente novamente.");
+    } catch (err: any) {
+      Alert.alert(
+        "Erro",
+        err?.message || "Não foi possível criar sua conta. Verifique o código e tente novamente."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -564,6 +588,14 @@ export default function LoginScreen() {
                 <Text style={styles.toggleTextBold}>Registre-se</Text>
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.guestButton}
+              onPress={() => router.replace("/(tabs)")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.guestText}>Continuar sem conta</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -592,13 +624,16 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Nome Completo</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, hasFieldError("nome") && styles.inputError]}
             placeholder="João Silva"
             value={nome}
             onChangeText={setNome}
             autoCapitalize="words"
             returnKeyType="next"
           />
+          {hasFieldError("nome") && (
+            <Text style={styles.errorHint}>Informe seu nome.</Text>
+          )}
 
           <Text style={styles.label}>Telefone (com DDD)</Text>
           <TextInput
@@ -626,6 +661,7 @@ export default function LoginScreen() {
             style={[
               styles.input,
               emailTouched && email.length > 0 && !isValidEmail(email) && styles.inputError,
+              hasFieldError("email") && styles.inputError,
             ]}
             placeholder="seu@email.com"
             value={email}
@@ -642,7 +678,7 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>Senha</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, hasFieldError("senha") && styles.inputError]}
             placeholder="Mínimo 6 caracteres"
             value={senha}
             onChangeText={setSenha}
@@ -657,13 +693,20 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>Confirmar Senha</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, hasFieldError("confirmarSenha") && styles.inputError]}
             placeholder="Repita a senha"
             value={confirmarSenha}
             onChangeText={setConfirmarSenha}
             secureTextEntry
             returnKeyType="next"
           />
+          {hasFieldError("confirmarSenha") && (
+            <Text style={styles.errorHint}>
+              {!confirmarSenha
+                ? "Confirme sua senha."
+                : "As senhas não coincidem."}
+            </Text>
+          )}
 
           <View style={styles.divider} />
 
@@ -672,7 +715,7 @@ export default function LoginScreen() {
           <View style={styles.row}>
             <View style={styles.flex3}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, hasFieldError("rua") && styles.inputError]}
                 placeholder="Rua"
                 value={rua}
                 onChangeText={setRua}
@@ -682,7 +725,7 @@ export default function LoginScreen() {
             </View>
             <View style={styles.flex1}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, hasFieldError("numero") && styles.inputError]}
                 placeholder="Nº"
                 value={numero}
                 onChangeText={setNumero}
@@ -691,6 +734,9 @@ export default function LoginScreen() {
               />
             </View>
           </View>
+          {(hasFieldError("rua") || hasFieldError("numero")) && (
+            <Text style={styles.errorHint}>Informe a rua e o número.</Text>
+          )}
 
           <TextInput
             style={[styles.input, styles.inputSpacing]}
@@ -701,14 +747,14 @@ export default function LoginScreen() {
             returnKeyType="next"
           />
 
-          <TextInput
-            style={[styles.input, styles.inputSpacing]}
-            placeholder="Bairro"
+          <BairroPicker
             value={bairro}
-            onChangeText={setBairro}
-            autoCapitalize="words"
-            returnKeyType="next"
+            hasError={hasFieldError("bairro")}
+            onSelect={(b: Bairro) => setBairro(b.nome)}
           />
+          {hasFieldError("bairro") && (
+            <Text style={styles.errorHint}>Selecione um bairro atendido.</Text>
+          )}
 
           <TextInput
             style={[styles.input, styles.inputSpacing]}
@@ -972,6 +1018,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#444",
     fontWeight: "600",
+  },
+  guestButton: {
+    alignItems: "center",
+    marginTop: 12,
+    paddingVertical: 10,
+  },
+  guestText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   forgotText: {
     color: BRAND_COLOR,

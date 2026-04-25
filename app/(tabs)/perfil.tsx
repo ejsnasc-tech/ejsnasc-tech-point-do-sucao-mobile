@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 
@@ -31,6 +32,7 @@ export default function PerfilScreen() {
 
 function PerfilForm() {
   const { user, updateUser, logout } = useAuth();
+  const { clearCart } = useCart();
   const [nome, setNome] = useState(user?.nome ?? "");
   const [telefone, setTelefone] = useState(user?.telefone ?? "");
   const [email] = useState(user?.email ?? "");
@@ -73,7 +75,15 @@ function PerfilForm() {
   const handleLogout = () => {
     Alert.alert("Sair da conta", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: () => logout() },
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          // Esvazia o carrinho ao sair: ele pertence à sessão do usuário.
+          await clearCart();
+          await logout();
+        },
+      },
     ]);
   };
 

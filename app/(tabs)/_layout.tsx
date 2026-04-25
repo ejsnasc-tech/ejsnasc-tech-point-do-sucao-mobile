@@ -4,6 +4,7 @@ import { TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BRAND_COLOR } from "@/constants/categories";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useOrderPolling } from "@/hooks/useOrderPolling";
 import type { Pedido } from "@/types/product";
 
@@ -25,6 +26,7 @@ export function useOrders() {
 
 export default function TabsLayout() {
   const { user, logout } = useAuth();
+  const { clearCart } = useCart();
   const router = useRouter();
 
   const polling = useOrderPolling({
@@ -40,7 +42,11 @@ export default function TabsLayout() {
       {
         text: "Sair",
         style: "destructive",
-        onPress: () => logout(),
+        onPress: async () => {
+          // Esvazia o carrinho ao sair: ele pertence à sessão do usuário.
+          await clearCart();
+          await logout();
+        },
       },
     ]);
   };
