@@ -25,7 +25,7 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
     try {
       const tel = telefoneRef.current;
       if (!tel) {
-        console.log("[Pedidos] Sem telefone para buscar pedidos");
+        // Sem telefone (convidado ou deslogado) — nada a buscar.
         return;
       }
 
@@ -73,17 +73,26 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
     }
   }, []);
 
-  // Refetch quando o app volta do background
+  // Refetch quando o app volta do background (só se há telefone)
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") {
+      if (state === "active" && telefoneRef.current) {
         void fetchOrders();
       }
     });
     return () => sub.remove();
   }, [fetchOrders]);
 
+  // Mantém o intervalo de polling apenas quando existe telefone.
+  // Sem telefone não agenda nada — evita logs e requisições desnecessárias.
   useEffect(() => {
+    if (!telefone) {
+      // Limpa pedidos antigos quando o usuário desloga.
+      setOrders([]);
+      previousStatusRef.current = {};
+      return;
+    }
+
     void fetchOrders();
     intervalRef.current = setInterval(() => {
       void fetchOrders();
@@ -92,9 +101,10 @@ export function useOrderPolling({ telefone, onStatusChange }: UseOrderPollingOpt
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [fetchOrders]);
+  }, [telefone, fetchOrders]);
 
   return { orders, isLoading, refetch: fetchOrders };
 }
