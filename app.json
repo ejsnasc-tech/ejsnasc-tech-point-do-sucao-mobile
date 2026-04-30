@@ -3,29 +3,66 @@
     "name": "Point do Sucão",
     "slug": "point-do-sucao-mobile",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pointdosucao",
     "userInterfaceStyle": "automatic",
+    "description": "Peça seus sucos, vitaminas e lanches favoritos do Point do Sucão com entrega no conforto da sua casa.",
+    "privacy": "unlisted",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.pointdosucao.mobile"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pointdosucao.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        },
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUserNotificationsUsageDescription": "Usamos notificações para te avisar quando seu pedido está pronto ou saiu para entrega."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pointdosucao.mobile"
+      "package": "com.pointdosucao.mobile",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#e63946",
+          "sounds": []
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "privacyPolicyUrl": "https://pointdosucao.com.br/privacidade",
+      "eas": {
+        "projectId": "COLE_AQUI_O_PROJECT_ID_DO_EAS"
+      }
     }
   }
 }

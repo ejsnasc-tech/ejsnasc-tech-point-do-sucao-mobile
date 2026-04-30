@@ -260,7 +260,6 @@ export default function LoginScreen() {
       Alert.alert("Atenção", "Por favor, informe sua senha.");
       return;
     }
-
     setIsSubmitting(true);
     try {
       const data = await loginUser({

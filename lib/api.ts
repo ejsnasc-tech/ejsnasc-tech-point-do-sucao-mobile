@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const API_BASE_URL = "https://pointdosucao.com.br";
 
 const SESSION_KEY = "@pointdosucao:session_cookie";
+const MOBILE_API_KEY = "AEF70E09F29A072211FCCB99D3A911BF3911EF61";
 
 export type ApiCategory = {
   nome: string;
@@ -44,6 +45,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
+      "X-Mobile-Key": MOBILE_API_KEY,
       ...cookieHeader,
       ...options?.headers,
     },
