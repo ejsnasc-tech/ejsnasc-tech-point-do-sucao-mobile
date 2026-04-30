@@ -152,10 +152,28 @@ export async function loginUser(payload: {
     referencia?: string;
   };
 }> {
-  return apiFetch("/api/client/login", {
+  const result = await apiFetch<{
+    cliente: {
+      id?: number;
+      cliente_nome: string;
+      cliente_telefone?: string;
+      telefone?: string;
+      email: string;
+      rua?: string;
+      numero?: string;
+      complemento?: string;
+      bairro?: string;
+      referencia?: string;
+    };
+    sessionToken?: string;
+  }>("/api/client/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  if (result.sessionToken) {
+    await AsyncStorage.setItem(SESSION_KEY, `cliente_session=${result.sessionToken}`);
+  }
+  return result;
 }
 
 export async function forgotPassword(telefone: string): Promise<{ message: string }> {
