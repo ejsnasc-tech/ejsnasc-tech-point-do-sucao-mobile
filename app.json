@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Point do Sucão",
-    "slug": "point-do-sucao-mobile",
+    "slug": "point-do-sucao",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -61,8 +61,9 @@
     "extra": {
       "privacyPolicyUrl": "https://pointdosucao.com.br/privacidade",
       "eas": {
-        "projectId": "COLE_AQUI_O_PROJECT_ID_DO_EAS"
+        "projectId": "680247b6-a6d5-44a7-804c-5cb5f2ab583c"
       }
-    }
+    },
+    "owner": "ejsnascs-organization"
   }
 }
