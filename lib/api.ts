@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const API_BASE_URL = "https://pointdosucao.com.br";
 
 const SESSION_KEY = "@pointdosucao:session_cookie";
+const SESSION_TOKEN_KEY = "@pointdosucao:session_token";
 const MOBILE_API_KEY = "AEF70E09F29A072211FCCB99D3A911BF3911EF61";
 
 export type ApiCategory = {
@@ -40,13 +41,18 @@ function normalizeImageUrl(imagePath: string, cacheBuster?: string): string {
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const sessionCookie = await AsyncStorage.getItem(SESSION_KEY);
+  const [sessionCookie, sessionToken] = await Promise.all([
+    AsyncStorage.getItem(SESSION_KEY),
+    AsyncStorage.getItem(SESSION_TOKEN_KEY),
+  ]);
   const cookieHeader = sessionCookie ? { Cookie: sessionCookie } : {};
+  const tokenHeader = sessionToken ? { "X-Session-Token": sessionToken } : {};
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       "X-Mobile-Key": MOBILE_API_KEY,
       ...cookieHeader,
+      ...tokenHeader,
       ...options?.headers,
     },
     ...options,
@@ -171,7 +177,13 @@ export async function loginUser(payload: {
     body: JSON.stringify(payload),
   });
   if (result.sessionToken) {
-    await AsyncStorage.setItem(SESSION_KEY, `cliente_session=${result.sessionToken}`);
+    await Promise.all([
+      AsyncStorage.setItem(SESSION_KEY, `cliente_session=${result.sessionToken}`),
+      AsyncStorage.setItem(SESSION_TOKEN_KEY, result.sessionToken),
+    ]);
+    console.log("[Session] Token salvo:", result.sessionToken.slice(0, 8) + "...");
+  } else {
+    console.log("[Session] AVISO: sessionToken ausente na resposta do login");
   }
   return result;
 }
@@ -214,5 +226,8 @@ export async function createEndereco(payload: {
 }
 
 export async function clearSession(): Promise<void> {
-  await AsyncStorage.removeItem(SESSION_KEY);
+  await Promise.all([
+    AsyncStorage.removeItem(SESSION_KEY),
+    AsyncStorage.removeItem(SESSION_TOKEN_KEY),
+  ]);
 }
