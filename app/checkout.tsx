@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido, getBairros, getEnderecos, createEndereco } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
@@ -159,6 +159,16 @@ function CheckoutForm() {
 
     setIsSubmitting(true);
     try {
+      const storeStatus = await getStoreStatus();
+      if (!storeStatus.is_open) {
+        Alert.alert(
+          "Loja fechada",
+          "Desculpe, no momento estamos fechados. Consulte nossos horários e tente novamente quando estivermos abertos."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       const useAddr = enderecoSelecionado;
       const addrRua = isRetirada ? "Retirada" : (useAddr?.rua ?? rua.trim());
       const addrNumero = isRetirada ? "0" : ((useAddr?.numero ?? numero.trim()) || "S/N");

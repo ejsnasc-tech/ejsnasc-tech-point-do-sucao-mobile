@@ -103,6 +103,10 @@ export async function getBairros(): Promise<Bairro[]> {
   return apiFetch<Bairro[]>("/api/bairros");
 }
 
+export async function getStoreStatus(): Promise<{ is_open: boolean }> {
+  return apiFetch<{ is_open: boolean }>("/api/horarios");
+}
+
 export async function getPedidos(telefone: string): Promise<Pedido[]> {
   const params = new URLSearchParams({ telefone });
   return apiFetch<Pedido[]>(`/api/pedidos?${params.toString()}`);
