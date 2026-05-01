@@ -172,7 +172,7 @@ export default function LoginScreen() {
         await sendVerificationCode(getPhoneDigits(telefone));
         setVerificationStep(true);
         startResendCooldown();
-        Alert.alert("Código enviado", "Um código de verificação foi enviado pelo WhatsApp para seu telefone.");
+        Alert.alert("Código enviado", "Um código de verificação foi enviado por SMS para seu telefone.");
       } catch {
         Alert.alert("Erro", "Não foi possível enviar o código de verificação. Verifique o telefone.");
       } finally {
@@ -243,7 +243,7 @@ export default function LoginScreen() {
     try {
       await sendVerificationCode(getPhoneDigits(telefone));
       startResendCooldown();
-      Alert.alert("Código reenviado", "Um novo código foi enviado pelo WhatsApp para seu telefone.");
+      Alert.alert("Código reenviado", "Um novo código foi enviado por SMS para seu telefone.");
     } catch {
       Alert.alert("Erro", "Não foi possível reenviar o código.");
     } finally {
@@ -317,7 +317,7 @@ export default function LoginScreen() {
         await forgotPassword(getPhoneDigits(forgotTelefone));
         setForgotStep("code");
         startResendCooldown();
-        Alert.alert("Código enviado", "Um código foi enviado pelo WhatsApp para seu telefone.");
+        Alert.alert("Código enviado", "Um código foi enviado por SMS para seu telefone.");
       } catch {
         Alert.alert("Erro", "Não foi possível enviar o código. Verifique o telefone.");
       } finally {
@@ -364,7 +364,7 @@ export default function LoginScreen() {
     try {
       await forgotPassword(getPhoneDigits(forgotTelefone));
       startResendCooldown();
-      Alert.alert("Código reenviado", "Um novo código foi enviado pelo WhatsApp para seu telefone.");
+      Alert.alert("Código reenviado", "Um novo código foi enviado por SMS para seu telefone.");
     } catch {
       Alert.alert("Erro", "Não foi possível reenviar o código.");
     } finally {
@@ -392,7 +392,7 @@ export default function LoginScreen() {
               <Text style={styles.titleLogin}>Esqueci minha senha</Text>
               <Text style={styles.subtitleLogin}>
                 {forgotStep === "phone"
-                  ? "Digite seu telefone cadastrado. Enviaremos um código pelo WhatsApp."
+                  ? "Digite seu telefone cadastrado. Enviaremos um código por SMS."
                   : "Digite o código recebido e sua nova senha."}
               </Text>
             </View>
@@ -767,9 +767,9 @@ export default function LoginScreen() {
           {verificationStep && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionTitle}>Verificação por WhatsApp</Text>
+              <Text style={styles.sectionTitle}>Verificação por SMS</Text>
               <Text style={styles.verificationHint}>
-                Digite o código de 6 dígitos enviado pelo WhatsApp para {telefone}
+                Digite o código de 6 dígitos enviado por SMS para {telefone}
               </Text>
               <TextInput
                 style={[styles.input, styles.codeInput]}
