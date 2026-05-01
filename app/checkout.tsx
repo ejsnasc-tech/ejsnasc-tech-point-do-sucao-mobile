@@ -10,12 +10,13 @@ import {
   Alert,
   Modal,
   FlatList,
+  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
@@ -79,6 +80,7 @@ function CheckoutForm() {
   const [showNovoBairroModal, setShowNovoBairroModal] = useState(false);
   const [novoBairroSearch, setNovoBairroSearch] = useState("");
   const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [pedidoMinimo, setPedidoMinimo] = useState(0);
 
   const activeBairro = enderecoSelecionado
     ? bairros.find((b) => b.nome.toLowerCase() === enderecoSelecionado.bairro.toLowerCase()) ?? bairroSelecionado
@@ -103,6 +105,10 @@ function CheckoutForm() {
         if (defaultAddr) setEnderecoSelecionado(defaultAddr);
       })
       .catch((err) => console.warn("[Checkout] Erro ao carregar endereços:", err));
+
+    getConfiguracoes()
+      .then((cfg) => setPedidoMinimo(cfg.pedido_minimo ?? 0))
+      .catch(() => {});
   }, []);
 
   // Preenche campos automaticamente quando user carrega do AsyncStorage
@@ -154,6 +160,14 @@ function CheckoutForm() {
     }
     if (cart.length === 0) {
       Alert.alert("Atenção", "Seu carrinho está vazio.");
+      return;
+    }
+
+    if (pedidoMinimo > 0 && total < pedidoMinimo) {
+      Alert.alert(
+        "Pedido mínimo",
+        `O pedido mínimo é R$ ${pedidoMinimo.toFixed(2).replace(".", ",")}. Adicione mais itens ao carrinho.`
+      );
       return;
     }
 
@@ -296,6 +310,13 @@ function CheckoutForm() {
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>{formatBRL(totalComTaxa)}</Text>
         </View>
+        {pedidoMinimo > 0 && total < pedidoMinimo && (
+          <View style={styles.minimoAlert}>
+            <Text style={styles.minimoAlertText}>
+              Pedido mínimo: {formatBRL(pedidoMinimo)} — faltam {formatBRL(pedidoMinimo - total)}
+            </Text>
+          </View>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>Seus dados</Text>
@@ -819,6 +840,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: BRAND_COLOR,
+  },
+  minimoAlert: {
+    marginTop: 10,
+    backgroundColor: "#fff3cd",
+    borderRadius: 8,
+    padding: 10,
+  },
+  minimoAlertText: {
+    fontSize: 13,
+    color: "#856404",
+    fontWeight: "600",
+    textAlign: "center",
   },
   label: {
     fontSize: 13,

@@ -107,6 +107,10 @@ export async function getStoreStatus(): Promise<{ is_open: boolean }> {
   return apiFetch<{ is_open: boolean }>("/api/horarios");
 }
 
+export async function getConfiguracoes(): Promise<{ pedido_minimo: number }> {
+  return apiFetch<{ pedido_minimo: number }>("/api/configuracoes");
+}
+
 export async function getPedidos(telefone: string): Promise<Pedido[]> {
   const params = new URLSearchParams({ telefone });
   return apiFetch<Pedido[]>(`/api/pedidos?${params.toString()}`);
