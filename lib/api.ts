@@ -239,3 +239,9 @@ export async function clearSession(): Promise<void> {
     AsyncStorage.removeItem(SESSION_TOKEN_KEY),
   ]);
 }
+
+export async function deleteAccount(): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>("/api/client/delete-account", {
+    method: "DELETE",
+  });
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useContext, useRef, createContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { clearSession } from "@/lib/api";
+import { clearSession, deleteAccount as deleteAccountApi } from "@/lib/api";
 
 const AUTH_KEY = "@pointdosucao:auth";
 
@@ -21,6 +21,7 @@ type AuthContextType = {
   login: (data: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<AuthUser>) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -70,6 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearSession();
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountApi();
+    setUser(null);
+    userRef.current = null;
+    await AsyncStorage.removeItem(AUTH_KEY);
+    await AsyncStorage.removeItem("@pointdosucao:cliente_info");
+    await clearSession();
+  }, []);
+
   const updateUser = useCallback(
     async (data: Partial<AuthUser>) => {
       const current = userRef.current;
@@ -94,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return React.createElement(
     AuthContext.Provider,
-    { value: { user, isLoading, login, logout, updateUser } },
+    { value: { user, isLoading, login, logout, updateUser, deleteAccount } },
     children
   );
 }
@@ -105,6 +115,7 @@ const defaultAuth: AuthContextType = {
   login: async () => {},
   logout: async () => {},
   updateUser: async () => {},
+  deleteAccount: async () => {},
 };
 
 export function useAuth() {

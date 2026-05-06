@@ -31,7 +31,7 @@ export default function PerfilScreen() {
 }
 
 function PerfilForm() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, logout, deleteAccount } = useAuth();
   const { clearCart } = useCart();
   const [nome, setNome] = useState(user?.nome ?? "");
   const [telefone, setTelefone] = useState(user?.telefone ?? "");
@@ -79,12 +79,33 @@ function PerfilForm() {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          // Esvazia o carrinho ao sair: ele pertence à sessão do usuário.
           await clearCart();
           await logout();
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Excluir conta",
+      "Esta ação é permanente e não pode ser desfeita. Todos os seus dados serão removidos. Deseja continuar?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await clearCart();
+              await deleteAccount();
+            } catch {
+              Alert.alert("Erro", "Não foi possível excluir sua conta. Tente novamente.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -204,6 +225,15 @@ function PerfilForm() {
           <Ionicons name="log-out-outline" size={20} color={BRAND_COLOR} />
           <Text style={styles.logoutButtonText}>Sair da conta</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash-outline" size={20} color="#dc2626" />
+          <Text style={styles.deleteButtonText}>Excluir minha conta</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -294,4 +324,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   logoutButtonText: { color: BRAND_COLOR, fontSize: 16, fontWeight: "700" },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "#dc2626",
+    borderRadius: 14,
+    backgroundColor: "#fff",
+  },
+  deleteButtonText: { color: "#dc2626", fontSize: 16, fontWeight: "700" },
 });
