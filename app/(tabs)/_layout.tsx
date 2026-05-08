@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from "react";
 import { Tabs, useRouter } from "expo-router";
-import { TouchableOpacity, Alert } from "react-native";
+import { TouchableOpacity, Alert, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BRAND_COLOR } from "@/constants/categories";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,6 +73,14 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: BRAND_COLOR },
         headerTintColor: "#fff",
         headerTitleStyle: { fontWeight: "700" },
+        headerTitle: () => (
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={{ height: 48, width: 190, marginRight: -40 }}
+            resizeMode="contain"
+          />
+        ),
+        headerTitleAlign: "right",
         headerRight: () => (
           user ? (
             <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
