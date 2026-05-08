@@ -406,6 +406,7 @@ export default function LoginScreen() {
                     forgotTelefone.length > 0 && !isValidPhone(forgotTelefone) && styles.inputError,
                     forgotTelefone.length > 0 && isValidPhone(forgotTelefone) && styles.inputSuccess,
                   ]}
+                  placeholderTextColor="#aaa"
                   placeholder="(79) 99988-7188"
                   value={forgotTelefone}
                   onChangeText={(text) => setForgotTelefone(formatPhone(text))}
@@ -420,6 +421,7 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Código de verificação</Text>
                 <TextInput
                   style={[styles.input, styles.codeInput]}
+                  placeholderTextColor="#aaa"
                   placeholder="000000"
                   value={forgotCode}
                   onChangeText={(t) => setForgotCode(t.replace(/\D/g, "").slice(0, 6))}
@@ -441,6 +443,7 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Nova Senha</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor="#aaa"
                   placeholder="Mínimo 6 caracteres"
                   value={forgotNewPassword}
                   onChangeText={setForgotNewPassword}
@@ -450,6 +453,7 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Confirmar Nova Senha</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor="#aaa"
                   placeholder="Repita a nova senha"
                   value={forgotConfirmPassword}
                   onChangeText={setForgotConfirmPassword}
@@ -525,6 +529,7 @@ export default function LoginScreen() {
                 loginTelefone.length > 0 && !isValidPhone(loginTelefone) && styles.inputError,
                 loginTelefone.length > 0 && isValidPhone(loginTelefone) && styles.inputSuccess,
               ]}
+              placeholderTextColor="#aaa"
               placeholder="(79) 99988-7188"
               value={loginTelefone}
               onChangeText={(text) => setLoginTelefone(formatPhone(text))}
@@ -536,6 +541,7 @@ export default function LoginScreen() {
             <Text style={styles.label}>Senha</Text>
             <TextInput
               style={styles.input}
+              placeholderTextColor="#aaa"
               placeholder="Sua senha"
               value={loginSenha}
               onChangeText={setLoginSenha}
@@ -624,6 +630,7 @@ export default function LoginScreen() {
           <Text style={styles.label}>Nome Completo</Text>
           <TextInput
             style={[styles.input, hasFieldError("nome") && styles.inputError]}
+            placeholderTextColor="#aaa"
             placeholder="João Silva"
             value={nome}
             onChangeText={setNome}
@@ -641,6 +648,7 @@ export default function LoginScreen() {
               telefone.length > 0 && !isValidPhone(telefone) && styles.inputError,
               telefone.length > 0 && isValidPhone(telefone) && styles.inputSuccess,
             ]}
+            placeholderTextColor="#aaa"
             placeholder="(79) 99988-7188"
             value={telefone}
             onChangeText={(text) => setTelefone(formatPhone(text))}
@@ -662,6 +670,7 @@ export default function LoginScreen() {
               emailTouched && email.length > 0 && !isValidEmail(email) && styles.inputError,
               hasFieldError("email") && styles.inputError,
             ]}
+            placeholderTextColor="#aaa"
             placeholder="seu@email.com"
             value={email}
             onChangeText={setEmail}
@@ -678,6 +687,7 @@ export default function LoginScreen() {
           <Text style={styles.label}>Senha</Text>
           <TextInput
             style={[styles.input, hasFieldError("senha") && styles.inputError]}
+            placeholderTextColor="#aaa"
             placeholder="Mínimo 6 caracteres"
             value={senha}
             onChangeText={setSenha}
@@ -693,6 +703,7 @@ export default function LoginScreen() {
           <Text style={styles.label}>Confirmar Senha</Text>
           <TextInput
             style={[styles.input, hasFieldError("confirmarSenha") && styles.inputError]}
+            placeholderTextColor="#aaa"
             placeholder="Repita a senha"
             value={confirmarSenha}
             onChangeText={setConfirmarSenha}
@@ -715,6 +726,7 @@ export default function LoginScreen() {
             <View style={styles.flex3}>
               <TextInput
                 style={[styles.input, hasFieldError("rua") && styles.inputError]}
+                placeholderTextColor="#aaa"
                 placeholder="Rua"
                 value={rua}
                 onChangeText={setRua}
@@ -725,6 +737,7 @@ export default function LoginScreen() {
             <View style={styles.flex1}>
               <TextInput
                 style={[styles.input, hasFieldError("numero") && styles.inputError]}
+                placeholderTextColor="#aaa"
                 placeholder="Nº"
                 value={numero}
                 onChangeText={setNumero}
@@ -739,6 +752,7 @@ export default function LoginScreen() {
 
           <TextInput
             style={[styles.input, styles.inputSpacing]}
+            placeholderTextColor="#aaa"
             placeholder="Complemento (opcional)"
             value={complemento}
             onChangeText={setComplemento}
@@ -757,6 +771,7 @@ export default function LoginScreen() {
 
           <TextInput
             style={[styles.input, styles.inputSpacing]}
+            placeholderTextColor="#aaa"
             placeholder="Referência (opcional)"
             value={referencia}
             onChangeText={setReferencia}
@@ -773,6 +788,7 @@ export default function LoginScreen() {
               </Text>
               <TextInput
                 style={[styles.input, styles.codeInput]}
+                placeholderTextColor="#aaa"
                 placeholder="000000"
                 value={verificationCode}
                 onChangeText={(t) => setVerificationCode(t.replace(/\D/g, "").slice(0, 6))}

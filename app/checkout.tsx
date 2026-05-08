@@ -163,6 +163,11 @@ function CheckoutForm() {
       return;
     }
 
+    if (formaPagamento === "dinheiro" && precisaTroco && !trocoPara.trim()) {
+      Alert.alert("Atenção", "Informe o valor para o troco.");
+      return;
+    }
+
     if (pedidoMinimo > 0 && total < pedidoMinimo) {
       Alert.alert(
         "Pedido mínimo",
@@ -324,6 +329,7 @@ function CheckoutForm() {
         <Text style={styles.label}>Nome *</Text>
         <TextInput
           style={styles.input}
+          placeholderTextColor="#aaa"
           placeholder="Seu nome completo"
           value={nome}
           onChangeText={setNome}
@@ -334,6 +340,7 @@ function CheckoutForm() {
         <Text style={styles.label}>Telefone (WhatsApp) *</Text>
         <TextInput
           style={styles.input}
+          placeholderTextColor="#aaa"
           placeholder="(00) 00000-0000"
           value={telefone}
           onChangeText={setTelefone}
@@ -420,6 +427,7 @@ function CheckoutForm() {
                     <Text style={styles.label}>Rua *</Text>
                     <TextInput
                       style={styles.input}
+                      placeholderTextColor="#aaa"
                       placeholder="Rua"
                       value={showNovoEndereco ? novoRua : rua}
                       onChangeText={showNovoEndereco ? setNovoRua : setRua}
@@ -430,6 +438,7 @@ function CheckoutForm() {
                     <Text style={styles.label}>Nº</Text>
                     <TextInput
                       style={styles.input}
+                      placeholderTextColor="#aaa"
                       placeholder="Nº"
                       value={showNovoEndereco ? novoNumero : numero}
                       onChangeText={showNovoEndereco ? setNovoNumero : setNumero}
@@ -440,6 +449,7 @@ function CheckoutForm() {
                 <Text style={styles.label}>Complemento</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor="#aaa"
                   placeholder="Apto, bloco... (opcional)"
                   value={showNovoEndereco ? novoComplemento : complemento}
                   onChangeText={showNovoEndereco ? setNovoComplemento : setComplemento}
@@ -465,6 +475,7 @@ function CheckoutForm() {
                 <Text style={styles.label}>Referência</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor="#aaa"
                   placeholder="Ponto de referência (opcional)"
                   value={showNovoEndereco ? novoReferencia : referencia}
                   onChangeText={showNovoEndereco ? setNovoReferencia : setReferencia}
@@ -586,6 +597,7 @@ function CheckoutForm() {
                 <Text style={styles.label}>Troco para quanto?</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor="#aaa"
                   placeholder="Ex: 50.00"
                   value={trocoPara}
                   onChangeText={setTrocoPara}
@@ -601,6 +613,7 @@ function CheckoutForm() {
       <View style={styles.card}>
         <TextInput
           style={[styles.input, styles.inputMultiline]}
+          placeholderTextColor="#aaa"
           placeholder="Alguma observação? (opcional)"
           value={observacao}
           onChangeText={setObservacao}
@@ -640,6 +653,7 @@ function CheckoutForm() {
             </View>
             <TextInput
               style={styles.modalSearch}
+              placeholderTextColor="#aaa"
               placeholder="Buscar bairro..."
               value={bairroSearch}
               onChangeText={setBairroSearch}
@@ -706,6 +720,7 @@ function CheckoutForm() {
             </View>
             <TextInput
               style={styles.modalSearch}
+              placeholderTextColor="#aaa"
               placeholder="Buscar bairro..."
               value={novoBairroSearch}
               onChangeText={setNovoBairroSearch}

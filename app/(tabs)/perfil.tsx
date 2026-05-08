@@ -13,8 +13,21 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
+import { requestPhoneChange, confirmPhoneChange } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
+
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 11;
+}
 
 export default function PerfilScreen() {
   const { user, updateUser, logout } = useAuth();
@@ -34,7 +47,6 @@ function PerfilForm() {
   const { user, updateUser, logout, deleteAccount } = useAuth();
   const { clearCart } = useCart();
   const [nome, setNome] = useState(user?.nome ?? "");
-  const [telefone, setTelefone] = useState(user?.telefone ?? "");
   const [email] = useState(user?.email ?? "");
   const [rua, setRua] = useState(user?.rua ?? "");
   const [numero, setNumero] = useState(user?.numero ?? "");
@@ -43,13 +55,16 @@ function PerfilForm() {
   const [referencia, setReferencia] = useState(user?.referencia ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Phone change flow
+  const [phoneChangeStep, setPhoneChangeStep] = useState<null | "choose" | "verify">(null);
+  const [phoneChangeMethod, setPhoneChangeMethod] = useState<"sms" | "email">("sms");
+  const [phoneChangeCode, setPhoneChangeCode] = useState("");
+  const [novoTelefone, setNovoTelefone] = useState("");
+  const [isChangingPhone, setIsChangingPhone] = useState(false);
+
   const handleSave = async () => {
     if (!nome.trim()) {
       Alert.alert("Atenção", "Informe seu nome.");
-      return;
-    }
-    if (!telefone.trim()) {
-      Alert.alert("Atenção", "Informe seu telefone.");
       return;
     }
 
@@ -57,7 +72,6 @@ function PerfilForm() {
     try {
       await updateUser({
         nome: nome.trim(),
-        telefone: telefone.trim(),
         rua: rua.trim() || undefined,
         numero: numero.trim() || undefined,
         complemento: complemento.trim() || undefined,
@@ -84,6 +98,43 @@ function PerfilForm() {
         },
       },
     ]);
+  };
+
+  const handleRequestPhoneChange = async (method: "sms" | "email") => {
+    setIsChangingPhone(true);
+    try {
+      await requestPhoneChange(method);
+      setPhoneChangeMethod(method);
+      setPhoneChangeStep("verify");
+    } catch (err: any) {
+      Alert.alert("Erro", err?.message || "Não foi possível enviar o código.");
+    } finally {
+      setIsChangingPhone(false);
+    }
+  };
+
+  const handleConfirmPhoneChange = async () => {
+    if (phoneChangeCode.trim().length !== 6) {
+      Alert.alert("Atenção", "Digite o código de 6 dígitos.");
+      return;
+    }
+    if (!isValidPhone(novoTelefone)) {
+      Alert.alert("Atenção", "Informe um número de telefone válido com DDD.");
+      return;
+    }
+    setIsChangingPhone(true);
+    try {
+      const result = await confirmPhoneChange(novoTelefone.replace(/\D/g, ""), phoneChangeCode.trim());
+      await updateUser({ telefone: result.novo_telefone });
+      setPhoneChangeStep(null);
+      setPhoneChangeCode("");
+      setNovoTelefone("");
+      Alert.alert("Sucesso", "Número de telefone atualizado com sucesso!");
+    } catch (err: any) {
+      Alert.alert("Erro", err?.message || "Código inválido ou número já cadastrado.");
+    } finally {
+      setIsChangingPhone(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -133,18 +184,121 @@ function PerfilForm() {
             style={styles.input}
             value={nome}
             onChangeText={setNome}
+            placeholderTextColor="#aaa"
             placeholder="Seu nome completo"
             autoCapitalize="words"
           />
 
-          <Text style={styles.label}>Telefone (WhatsApp) *</Text>
+          <Text style={styles.label}>Telefone (WhatsApp)</Text>
           <TextInput
-            style={styles.input}
-            value={telefone}
-            onChangeText={setTelefone}
-            placeholder="(00) 00000-0000"
-            keyboardType="phone-pad"
+            style={[styles.input, styles.inputDisabled]}
+            value={user?.telefone ?? ""}
+            editable={false}
           />
+
+          {phoneChangeStep === null && (
+            <TouchableOpacity onPress={() => setPhoneChangeStep("choose")} activeOpacity={0.7}>
+              <Text style={styles.changePhoneLink}>Alterar telefone</Text>
+            </TouchableOpacity>
+          )}
+
+          {phoneChangeStep === "choose" && (
+            <View style={styles.phoneChangeBox}>
+              <Text style={styles.phoneChangeTitle}>Como deseja verificar sua identidade?</Text>
+              <TouchableOpacity
+                style={[styles.phoneMethodBtn, isChangingPhone && { opacity: 0.5 }]}
+                onPress={() => handleRequestPhoneChange("sms")}
+                disabled={isChangingPhone}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-outline" size={16} color={BRAND_COLOR} />
+                <Text style={styles.phoneMethodText}>SMS para número atual</Text>
+              </TouchableOpacity>
+              {!!user?.email && (
+                <TouchableOpacity
+                  style={[styles.phoneMethodBtn, isChangingPhone && { opacity: 0.5 }]}
+                  onPress={() => handleRequestPhoneChange("email")}
+                  disabled={isChangingPhone}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="mail-outline" size={16} color={BRAND_COLOR} />
+                  <Text style={styles.phoneMethodText}>Código por email</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Sem acesso?",
+                    "Caso não tenha acesso ao número atual nem ao email cadastrado, crie uma nova conta com o novo número."
+                  )
+                }
+              >
+                <Text style={styles.noAccessLink}>Não tenho acesso a nenhuma dessas opções</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPhoneChangeStep(null)}>
+                <Text style={styles.cancelLink}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {phoneChangeStep === "verify" && (
+            <View style={styles.phoneChangeBox}>
+              <Text style={styles.phoneChangeTitle}>
+                Código enviado {phoneChangeMethod === "sms" ? "por SMS" : "por email"}
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={phoneChangeCode}
+                onChangeText={(t) => setPhoneChangeCode(t.replace(/\D/g, "").slice(0, 6))}
+                placeholderTextColor="#aaa"
+                placeholderTextColor="#aaa"
+                placeholder="000000"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              <Text style={[styles.label, { marginTop: 12 }]}>Novo número de telefone</Text>
+              <TextInput
+                style={styles.input}
+                value={novoTelefone}
+                onChangeText={(v) => setNovoTelefone(formatPhone(v))}
+                placeholderTextColor="#aaa"
+                placeholderTextColor="#aaa"
+                placeholder="(00) 00000-0000"
+                keyboardType="phone-pad"
+              />
+              <TouchableOpacity
+                style={[styles.saveButton, { marginTop: 12 }, isChangingPhone && styles.saveButtonDisabled]}
+                onPress={handleConfirmPhoneChange}
+                disabled={isChangingPhone}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isChangingPhone ? "Verificando..." : "Confirmar novo número"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Sem acesso?",
+                    "Caso não tenha acesso ao número atual nem ao email cadastrado, crie uma nova conta com o novo número."
+                  )
+                }
+              >
+                <Text style={styles.noAccessLink}>
+                  Não tenho acesso ao {phoneChangeMethod === "sms" ? "número atual" : "email"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setPhoneChangeStep(null);
+                  setPhoneChangeCode("");
+                  setNovoTelefone("");
+                }}
+              >
+                <Text style={styles.cancelLink}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -163,6 +317,7 @@ function PerfilForm() {
                 style={styles.input}
                 value={rua}
                 onChangeText={setRua}
+                placeholderTextColor="#aaa"
                 placeholder="Rua"
                 autoCapitalize="words"
               />
@@ -173,6 +328,7 @@ function PerfilForm() {
                 style={styles.input}
                 value={numero}
                 onChangeText={setNumero}
+                placeholderTextColor="#aaa"
                 placeholder="Nº"
                 keyboardType="numeric"
               />
@@ -184,6 +340,7 @@ function PerfilForm() {
             style={styles.input}
             value={complemento}
             onChangeText={setComplemento}
+            placeholderTextColor="#aaa"
             placeholder="Apto, bloco... (opcional)"
           />
 
@@ -192,6 +349,7 @@ function PerfilForm() {
             style={styles.input}
             value={bairro}
             onChangeText={setBairro}
+            placeholderTextColor="#aaa"
             placeholder="Bairro"
             autoCapitalize="words"
           />
@@ -201,6 +359,7 @@ function PerfilForm() {
             style={styles.input}
             value={referencia}
             onChangeText={setReferencia}
+            placeholderTextColor="#aaa"
             placeholder="Ponto de referência (opcional)"
           />
         </View>
@@ -324,6 +483,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   logoutButtonText: { color: BRAND_COLOR, fontSize: 16, fontWeight: "700" },
+  changePhoneLink: {
+    color: BRAND_COLOR,
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  phoneChangeBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#fef3f2",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    gap: 8,
+  },
+  phoneChangeTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 4,
+  },
+  phoneMethodBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BRAND_COLOR,
+  },
+  phoneMethodText: {
+    color: BRAND_COLOR,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  noAccessLink: {
+    color: "#888",
+    fontSize: 12,
+    textDecorationLine: "underline",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  cancelLink: {
+    color: "#999",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 2,
+  },
   deleteButton: {
     flexDirection: "row",
     alignItems: "center",

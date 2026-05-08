@@ -4,7 +4,7 @@ import { getPedidos } from "@/lib/api";
 import { sendOrderStatusNotification } from "@/lib/notifications";
 import type { Pedido, PedidoStatus } from "@/types/product";
 
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 60_000;
 
 type UseOrderPollingOptions = {
   telefone?: string;

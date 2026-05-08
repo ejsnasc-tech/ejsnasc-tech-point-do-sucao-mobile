@@ -19,16 +19,16 @@ export default function FavoritosScreen() {
   const { getQuantity, updateQuantity } = useCart();
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   const loadProducts = useCallback(async () => {
     try {
       const prods = await getProducts();
       setAllProducts(prods);
     } catch {
-      // mantém lista vazia
+      // mantém lista existente
     } finally {
-      setIsLoading(false);
+      setIsFirstLoad(false);
     }
   }, []);
 
@@ -46,7 +46,7 @@ export default function FavoritosScreen() {
 
   const favoriteProducts = allProducts.filter((p) => isFavorite(p.id) && p.preco > 0);
 
-  if (isLoading) {
+  if (isFirstLoad && allProducts.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={BRAND_COLOR} />

@@ -245,3 +245,20 @@ export async function deleteAccount(): Promise<{ success: boolean }> {
     method: "DELETE",
   });
 }
+
+export async function requestPhoneChange(method: "sms" | "email"): Promise<void> {
+  await apiFetch("/api/client/request-phone-change", {
+    method: "POST",
+    body: JSON.stringify({ method }),
+  });
+}
+
+export async function confirmPhoneChange(
+  novo_telefone: string,
+  codigo: string
+): Promise<{ novo_telefone: string }> {
+  return apiFetch<{ novo_telefone: string }>("/api/client/confirm-phone-change", {
+    method: "POST",
+    body: JSON.stringify({ novo_telefone, codigo }),
+  });
+}
