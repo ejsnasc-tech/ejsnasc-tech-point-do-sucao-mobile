@@ -26,10 +26,16 @@ function formatBRL(value: number): string {
 }
 
 export default function CheckoutScreen() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  // Bloqueia acesso ao checkout para convidados: precisa estar logado para
-  // fazer pedido (mesma regra do site).
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
+        <ActivityIndicator size="large" color={BRAND_COLOR} />
+      </View>
+    );
+  }
+
   if (!user) {
     return (
       <LoginGate
