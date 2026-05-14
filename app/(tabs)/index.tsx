@@ -13,6 +13,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { getProducts, getCategories } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
 import { CartBar } from "@/components/CartBar";
+import { VariacaoModal } from "@/components/VariacaoModal";
 import type { Product, Category } from "@/types/product";
 import { BRAND_COLOR, DEFAULT_CATEGORIES, CATEGORY_IMAGES } from "@/constants/categories";
 
@@ -39,6 +40,7 @@ export default function CardapioScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variacaoProduct, setVariacaoProduct] = useState<Product | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -88,7 +90,7 @@ export default function CardapioScreen() {
       (activeCategories.length === 0 || activeCategories.includes(p.categoria)) &&
       p.ativo !== 0 &&
       p.ativo !== false &&
-      p.preco > 0
+      (p.preco > 0 || Boolean(p.tem_variacoes))
   );
 
   const popularProducts = allActiveProducts.filter(
@@ -145,7 +147,11 @@ export default function CardapioScreen() {
                 <TouchableOpacity
                   key={product.id}
                   style={styles.popularCard}
-                  onPress={() => updateQuantity(product, 1)}
+                  onPress={() =>
+                    product.tem_variacoes
+                      ? setVariacaoProduct(product)
+                      : updateQuantity(product, 1)
+                  }
                   activeOpacity={0.85}
                 >
                   <View style={styles.popularCircle}>
@@ -196,6 +202,11 @@ export default function CardapioScreen() {
         qtdTotal={qtdTotal}
         total={total}
         onPress={() => router.push("/checkout")}
+      />
+      <VariacaoModal
+        product={variacaoProduct}
+        visible={variacaoProduct !== null}
+        onClose={() => setVariacaoProduct(null)}
       />
     </View>
   );

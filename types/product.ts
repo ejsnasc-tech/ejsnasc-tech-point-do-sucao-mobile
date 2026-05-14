@@ -8,6 +8,25 @@ export type Bairro = {
   pedido_minimo: number;
 };
 
+export type OpcaoVariacao = {
+  id: number;
+  variacao_id: number;
+  nome: string;
+  preco: number;
+  ativo: number;
+  ordem: number;
+};
+
+export type Variacao = {
+  id: number;
+  produto_id: number;
+  nome: string;
+  qtd_minima: number;
+  qtd_maxima: number;
+  tipo_calculo: string;
+  opcoes: OpcaoVariacao[];
+};
+
 export type Product = {
   id: number;
   nome: string;
@@ -18,9 +37,14 @@ export type Product = {
   rating?: number;
   popular?: boolean | number;
   ativo?: boolean | number;
+  tem_variacoes?: boolean | number;
 };
 
-export type CartItem = Product & { qtde: number };
+export type CartItem = Product & {
+  qtde: number;
+  cartKey: string;
+  variacao_label?: string;
+};
 
 export type PedidoStatus =
   | "novo"

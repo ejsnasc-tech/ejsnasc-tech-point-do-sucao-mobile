@@ -12,6 +12,7 @@ import { getProducts, getCategories } from "@/lib/api";
 import { useCart } from "@/hooks/useCart";
 import { useFavorites } from "@/hooks/useFavorites";
 import { ProductCard } from "@/components/ProductCard";
+import { VariacaoModal } from "@/components/VariacaoModal";
 import { CartBar } from "@/components/CartBar";
 import { useRouter } from "expo-router";
 import type { Product } from "@/types/product";
@@ -28,6 +29,7 @@ export default function CategoriaScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variacaoProduct, setVariacaoProduct] = useState<Product | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -67,7 +69,7 @@ export default function CategoriaScreen() {
       (activeCategories.length === 0 || activeCategories.includes(p.categoria)) &&
       p.ativo !== 0 &&
       p.ativo !== false &&
-      p.preco > 0
+      (p.preco > 0 || Boolean(p.tem_variacoes))
   );
 
   if (isLoading) {
@@ -100,6 +102,7 @@ export default function CategoriaScreen() {
             onAdd={() => updateQuantity(item, 1)}
             onRemove={() => updateQuantity(item, -1)}
             onToggleFavorite={() => toggleFavorite(item.id)}
+            onOpenVariacoes={item.tem_variacoes ? () => setVariacaoProduct(item) : undefined}
           />
         )}
         ListEmptyComponent={
@@ -121,6 +124,11 @@ export default function CategoriaScreen() {
         qtdTotal={qtdTotal}
         total={total}
         onPress={() => router.push("/checkout")}
+      />
+      <VariacaoModal
+        product={variacaoProduct}
+        visible={variacaoProduct !== null}
+        onClose={() => setVariacaoProduct(null)}
       />
     </View>
   );

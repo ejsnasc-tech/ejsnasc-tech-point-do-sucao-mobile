@@ -1,4 +1,4 @@
-import type { Product, Pedido, CreatePedidoPayload, Bairro, EnderecoSalvo } from "@/types/product";
+import type { Product, Pedido, CreatePedidoPayload, Bairro, EnderecoSalvo, Variacao } from "@/types/product";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_BASE_URL = "https://pointdosucao.com.br";
@@ -97,6 +97,10 @@ export async function getCategories(): Promise<ApiCategory[]> {
     ...category,
     imagem: category.imagem ? normalizeImageUrl(category.imagem, cacheBuster) : category.imagem,
   }));
+}
+
+export async function getVariacoes(produtoId: number): Promise<Variacao[]> {
+  return apiFetch<Variacao[]>(`/api/variacoes?produto_id=${produtoId}`);
 }
 
 export async function getBairros(): Promise<Bairro[]> {

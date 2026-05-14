@@ -17,6 +17,7 @@ type Props = {
   onAdd: () => void;
   onRemove: () => void;
   onToggleFavorite: () => void;
+  onOpenVariacoes?: () => void;
 };
 
 function formatBRL(value: number): string {
@@ -30,8 +31,10 @@ export function ProductCard({
   onAdd,
   onRemove,
   onToggleFavorite,
+  onOpenVariacoes,
 }: Props) {
   const imageUri = product.img || CATEGORY_IMAGES[product.categoria] || CATEGORY_IMAGES.Todos;
+  const hasVariacoes = Boolean(product.tem_variacoes) && Boolean(onOpenVariacoes);
 
   return (
     <View style={styles.card}>
@@ -45,22 +48,35 @@ export function ProductCard({
             {product.descricao}
           </Text>
         ) : null}
-        <Text style={styles.price}>{formatBRL(product.preco)}</Text>
+        {product.preco > 0 && (
+          <Text style={styles.price}>{formatBRL(product.preco)}</Text>
+        )}
 
-        {/* Botões de quantidade */}
-        <View style={styles.quantityRow}>
-          <TouchableOpacity
-            style={[styles.qtyButton, quantity === 0 && styles.qtyButtonDisabled]}
-            onPress={onRemove}
-            disabled={quantity === 0}
-          >
-            <Ionicons name="remove" size={16} color={quantity === 0 ? "#ccc" : BRAND_COLOR} />
+        {hasVariacoes ? (
+          <TouchableOpacity style={styles.verOpcoes} onPress={onOpenVariacoes} activeOpacity={0.8}>
+            <Text style={styles.verOpcoesText}>Ver opções</Text>
+            {quantity > 0 && (
+              <View style={styles.qtdBadge}>
+                <Text style={styles.qtdBadgeText}>{quantity}</Text>
+              </View>
+            )}
           </TouchableOpacity>
-          <Text style={styles.qty}>{quantity}</Text>
-          <TouchableOpacity style={styles.qtyButton} onPress={onAdd}>
-            <Ionicons name="add" size={16} color={BRAND_COLOR} />
-          </TouchableOpacity>
-        </View>
+        ) : (
+          /* Botões de quantidade */
+          <View style={styles.quantityRow}>
+            <TouchableOpacity
+              style={[styles.qtyButton, quantity === 0 && styles.qtyButtonDisabled]}
+              onPress={onRemove}
+              disabled={quantity === 0}
+            >
+              <Ionicons name="remove" size={16} color={quantity === 0 ? "#ccc" : BRAND_COLOR} />
+            </TouchableOpacity>
+            <Text style={styles.qty}>{quantity}</Text>
+            <TouchableOpacity style={styles.qtyButton} onPress={onAdd}>
+              <Ionicons name="add" size={16} color={BRAND_COLOR} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Imagem + favorito à direita */}
@@ -148,6 +164,37 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: "center",
     color: "#1a1a1a",
+  },
+  verOpcoes: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: BRAND_COLOR,
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+  verOpcoesText: {
+    color: BRAND_COLOR,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  qtdBadge: {
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  qtdBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   imageWrapper: {
     position: "relative",

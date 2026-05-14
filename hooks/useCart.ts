@@ -8,7 +8,8 @@ type CartContextType = {
   cart: CartItem[];
   getQuantity: (productId: number) => number;
   updateQuantity: (product: Product, delta: number) => Promise<void>;
-  removeItem: (productId: number) => Promise<void>;
+  addVariacaoItem: (product: Product, cartKey: string, preco: number, variacaoLabel: string) => Promise<void>;
+  removeItem: (cartKey: string) => Promise<void>;
   clearCart: () => Promise<void>;
   total: number;
   qtdTotal: number;
@@ -38,26 +39,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const getQuantity = useCallback(
     (productId: number): number => {
-      return cart.find((item) => item.id === productId)?.qtde ?? 0;
+      return cart
+        .filter((item) => item.id === productId)
+        .reduce((sum, item) => sum + item.qtde, 0);
     },
     [cart]
   );
 
   const updateQuantity = useCallback(
     async (product: Product, delta: number) => {
-      const current = cart.find((item) => item.id === product.id);
+      const cartKey = String(product.id);
+      const current = cart.find((item) => item.cartKey === cartKey);
       let newCart: CartItem[];
 
       if (!current) {
         if (delta <= 0) return;
-        newCart = [...cart, { ...product, qtde: delta }];
+        newCart = [...cart, { ...product, qtde: delta, cartKey }];
       } else {
         const newQtde = current.qtde + delta;
         if (newQtde <= 0) {
-          newCart = cart.filter((item) => item.id !== product.id);
+          newCart = cart.filter((item) => item.cartKey !== cartKey);
         } else {
           newCart = cart.map((item) =>
-            item.id === product.id ? { ...item, qtde: newQtde } : item
+            item.cartKey === cartKey ? { ...item, qtde: newQtde } : item
           );
         }
       }
@@ -67,9 +71,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [cart, persistCart]
   );
 
+  const addVariacaoItem = useCallback(
+    async (product: Product, cartKey: string, preco: number, variacaoLabel: string) => {
+      const current = cart.find((item) => item.cartKey === cartKey);
+      let newCart: CartItem[];
+      if (!current) {
+        newCart = [...cart, { ...product, preco, qtde: 1, cartKey, variacao_label: variacaoLabel }];
+      } else {
+        newCart = cart.map((item) =>
+          item.cartKey === cartKey ? { ...item, qtde: item.qtde + 1 } : item
+        );
+      }
+      await persistCart(newCart);
+    },
+    [cart, persistCart]
+  );
+
   const removeItem = useCallback(
-    async (productId: number) => {
-      const newCart = cart.filter((item) => item.id !== productId);
+    async (cartKey: string) => {
+      const newCart = cart.filter((item) => item.cartKey !== cartKey);
       await persistCart(newCart);
     },
     [cart, persistCart]
@@ -84,7 +104,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return React.createElement(
     CartContext.Provider,
-    { value: { cart, getQuantity, updateQuantity, removeItem, clearCart, total, qtdTotal } },
+    { value: { cart, getQuantity, updateQuantity, addVariacaoItem, removeItem, clearCart, total, qtdTotal } },
     children
   );
 }
