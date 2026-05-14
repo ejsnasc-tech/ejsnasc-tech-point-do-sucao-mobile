@@ -2,7 +2,7 @@
   "expo": {
     "name": "Point do Sucão",
     "slug": "point-do-sucao",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
