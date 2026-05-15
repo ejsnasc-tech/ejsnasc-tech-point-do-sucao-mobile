@@ -228,7 +228,7 @@ function CheckoutForm() {
         total: totalComTaxa,
         itens: cart.map((item) => ({
           produto_id: item.id,
-          nome_produto: item.nome,
+          nome_produto: item.variacao_label ? `${item.nome} (${item.variacao_label})` : item.nome,
           preco_unitario: item.preco,
           quantidade: item.qtde,
         })),
@@ -287,16 +287,23 @@ function CheckoutForm() {
       <Text style={styles.sectionTitle}>Resumo do Pedido</Text>
       <View style={styles.card}>
         {cart.map((item) => (
-          <View key={item.id} style={styles.itemRow}>
+          <View key={item.cartKey} style={styles.itemRow}>
             <Text style={styles.itemQtde}>{item.qtde}x</Text>
-            <Text style={styles.itemNome} numberOfLines={1}>
-              {item.nome}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.itemNome} numberOfLines={1}>
+                {item.nome}
+              </Text>
+              {item.variacao_label ? (
+                <Text style={styles.itemVariacao} numberOfLines={1}>
+                  {item.variacao_label}
+                </Text>
+              ) : null}
+            </View>
             <Text style={styles.itemPreco}>
               {formatBRL(item.preco * item.qtde)}
             </Text>
             <TouchableOpacity
-              onPress={() => removeItem(item.id)}
+              onPress={() => removeItem(item.cartKey)}
               style={styles.removeButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
@@ -829,9 +836,13 @@ const styles = StyleSheet.create({
     width: 28,
   },
   itemNome: {
-    flex: 1,
     fontSize: 14,
     color: "#333",
+  },
+  itemVariacao: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 1,
   },
   itemPreco: {
     fontSize: 14,
