@@ -51,7 +51,7 @@ export default function CheckoutScreen() {
 
 function CheckoutForm() {
   const router = useRouter();
-  const { cart, total, clearCart, removeItem } = useCart();
+  const { cart, total, clearCart, removeItem, adjustQuantity } = useCart();
   const { user, updateUser } = useAuth();
 
   const [nome, setNome] = useState(user?.nome ?? "");
@@ -283,12 +283,11 @@ function CheckoutForm() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.sectionTitle}>Resumo do Pedido</Text>
       <View style={styles.card}>
         {cart.map((item) => (
           <View key={item.cartKey} style={styles.itemRow}>
-            <Text style={styles.itemQtde}>{item.qtde}x</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.itemNome} numberOfLines={1}>
                 {item.nome}
@@ -298,17 +297,36 @@ function CheckoutForm() {
                   {item.variacao_label}
                 </Text>
               ) : null}
+              <View style={styles.itemControls}>
+                <TouchableOpacity
+                  onPress={() => removeItem(item.cartKey)}
+                  style={styles.removeButton}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#e63946" />
+                </TouchableOpacity>
+                <View style={styles.qtyRow}>
+                  <TouchableOpacity
+                    onPress={() => adjustQuantity(item.cartKey, -1)}
+                    style={styles.qtyBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="remove" size={16} color={BRAND_COLOR} />
+                  </TouchableOpacity>
+                  <Text style={styles.qtyText}>{item.qtde}</Text>
+                  <TouchableOpacity
+                    onPress={() => adjustQuantity(item.cartKey, 1)}
+                    style={styles.qtyBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="add" size={16} color={BRAND_COLOR} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.itemPreco}>
+                  {formatBRL(item.preco * item.qtde)}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.itemPreco}>
-              {formatBRL(item.preco * item.qtde)}
-            </Text>
-            <TouchableOpacity
-              onPress={() => removeItem(item.cartKey)}
-              style={styles.removeButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="trash-outline" size={18} color="#e63946" />
-            </TouchableOpacity>
           </View>
         ))}
         <View style={styles.divider} />
@@ -826,32 +844,53 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  itemQtde: {
-    fontSize: 14,
-    color: BRAND_COLOR,
-    fontWeight: "600",
-    width: 28,
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
   itemNome: {
     fontSize: 14,
     color: "#333",
+    fontWeight: "500",
   },
   itemVariacao: {
     fontSize: 12,
     color: "#888",
     marginTop: 1,
   },
+  itemControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    gap: 8,
+  },
+  removeButton: {
+    padding: 4,
+  },
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  qtyBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "#fafafa",
+  },
+  qtyText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a1a1a",
+    minWidth: 24,
+    textAlign: "center",
+  },
   itemPreco: {
     fontSize: 14,
     color: "#333",
-    fontWeight: "500",
-  },
-  removeButton: {
-    marginLeft: 8,
-    padding: 4,
+    fontWeight: "600",
+    marginLeft: "auto" as any,
   },
   divider: {
     height: 1,

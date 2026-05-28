@@ -8,6 +8,7 @@ type CartContextType = {
   cart: CartItem[];
   getQuantity: (productId: number) => number;
   updateQuantity: (product: Product, delta: number) => Promise<void>;
+  adjustQuantity: (cartKey: string, delta: number) => Promise<void>;
   addVariacaoItem: (product: Product, cartKey: string, preco: number, variacaoLabel: string) => Promise<void>;
   removeItem: (cartKey: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -87,6 +88,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [cart, persistCart]
   );
 
+  const adjustQuantity = useCallback(
+    async (cartKey: string, delta: number) => {
+      const current = cart.find((item) => item.cartKey === cartKey);
+      if (!current) return;
+      const newQtde = current.qtde + delta;
+      let newCart: CartItem[];
+      if (newQtde <= 0) {
+        newCart = cart.filter((item) => item.cartKey !== cartKey);
+      } else {
+        newCart = cart.map((item) =>
+          item.cartKey === cartKey ? { ...item, qtde: newQtde } : item
+        );
+      }
+      await persistCart(newCart);
+    },
+    [cart, persistCart]
+  );
+
   const removeItem = useCallback(
     async (cartKey: string) => {
       const newCart = cart.filter((item) => item.cartKey !== cartKey);
@@ -104,7 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return React.createElement(
     CartContext.Provider,
-    { value: { cart, getQuantity, updateQuantity, addVariacaoItem, removeItem, clearCart, total, qtdTotal } },
+    { value: { cart, getQuantity, updateQuantity, adjustQuantity, addVariacaoItem, removeItem, clearCart, total, qtdTotal } },
     children
   );
 }
