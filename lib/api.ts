@@ -244,6 +244,28 @@ export async function clearSession(): Promise<void> {
   ]);
 }
 
+export type ValidarCupomResult =
+  | { ok: true; desconto: number; descricao: string | null; tipo: "percentual" | "fixo"; valor: number }
+  | { ok: false; error: string };
+
+export async function validarCupom(
+  codigo: string,
+  subtotal: number,
+  telefone?: string
+): Promise<ValidarCupomResult> {
+  try {
+    const params = new URLSearchParams({ codigo, subtotal: subtotal.toString(), canal: "app" });
+    if (telefone) params.append("telefone", telefone);
+    const result = await apiFetch<{
+      cupom: { descricao: string | null; tipo: "percentual" | "fixo"; valor: number };
+      desconto: number;
+    }>(`/api/cupons?${params.toString()}`);
+    return { ok: true, desconto: result.desconto, descricao: result.cupom.descricao, tipo: result.cupom.tipo, valor: result.cupom.valor };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Cupom inválido." };
+  }
+}
+
 export async function deleteAccount(): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>("/api/client/delete-account", {
     method: "DELETE",

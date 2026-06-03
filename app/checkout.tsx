@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes, validarCupom } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
@@ -68,6 +68,12 @@ function CheckoutForm() {
   const [trocoPara, setTrocoPara] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [cupomInput, setCupomInput] = useState("");
+  const [cupomAplicado, setCupomAplicado] = useState<string | null>(null);
+  const [desconto, setDesconto] = useState(0);
+  const [cupomErro, setCupomErro] = useState<string | null>(null);
+  const [isValidandoCupom, setIsValidandoCupom] = useState(false);
+
   const [bairros, setBairros] = useState<Bairro[]>([]);
   const [bairroSelecionado, setBairroSelecionado] = useState<Bairro | null>(null);
   const [showBairroModal, setShowBairroModal] = useState(false);
@@ -92,7 +98,7 @@ function CheckoutForm() {
     ? bairros.find((b) => b.nome.toLowerCase() === enderecoSelecionado.bairro.toLowerCase()) ?? bairroSelecionado
     : bairroSelecionado;
   const taxaEntrega = isRetirada ? 0 : (activeBairro?.taxa_entrega ?? 0);
-  const totalComTaxa = total + taxaEntrega;
+  const totalComTaxa = Math.max(0, total + taxaEntrega - desconto);
 
   // Carrega bairros da API
   useEffect(() => {
@@ -139,6 +145,29 @@ function CheckoutForm() {
       if (match) setBairroSelecionado(match);
     }
   }, [bairros, bairro]);
+
+  const handleAplicarCupom = useCallback(async () => {
+    const codigo = cupomInput.trim().toUpperCase();
+    if (!codigo) return;
+    setIsValidandoCupom(true);
+    setCupomErro(null);
+    const resultado = await validarCupom(codigo, total, telefone.trim() || undefined);
+    setIsValidandoCupom(false);
+    if (resultado.ok) {
+      setCupomAplicado(codigo);
+      setDesconto(resultado.desconto);
+      setCupomErro(null);
+    } else {
+      setCupomErro(resultado.error);
+    }
+  }, [cupomInput, total, telefone]);
+
+  const handleRemoverCupom = useCallback(() => {
+    setCupomAplicado(null);
+    setDesconto(0);
+    setCupomInput("");
+    setCupomErro(null);
+  }, []);
 
   const formasPagamento = [
     { value: "pix", label: "PIX" },
@@ -225,6 +254,8 @@ function CheckoutForm() {
             : undefined,
         subtotal: total,
         taxa_entrega: taxaEntrega,
+        desconto: desconto > 0 ? desconto : undefined,
+        cupom_codigo: cupomAplicado ?? undefined,
         total: totalComTaxa,
         itens: cart.map((item) => ({
           produto_id: item.id,
@@ -272,7 +303,7 @@ function CheckoutForm() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [nome, telefone, rua, numero, complemento, bairroSelecionado, referencia, isRetirada, formaPagamento, observacao, precisaTroco, trocoPara, cart, total, taxaEntrega, totalComTaxa, clearCart, updateUser, user, router]);
+  }, [nome, telefone, rua, numero, complemento, bairroSelecionado, referencia, isRetirada, formaPagamento, observacao, precisaTroco, trocoPara, cart, total, taxaEntrega, totalComTaxa, desconto, cupomAplicado, clearCart, updateUser, user, router]);
 
   if (cart.length === 0) {
     return (
@@ -342,6 +373,12 @@ function CheckoutForm() {
             </Text>
           </View>
         )}
+        {desconto > 0 && (
+          <View style={styles.totalRow}>
+            <Text style={[styles.subtotalLabel, { color: "#2a9d3f" }]}>Desconto ({cupomAplicado})</Text>
+            <Text style={[styles.subtotalValue, { color: "#2a9d3f", fontWeight: "700" }]}>- {formatBRL(desconto)}</Text>
+          </View>
+        )}
         <View style={[styles.totalRow, { marginTop: 6 }]}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>{formatBRL(totalComTaxa)}</Text>
@@ -352,6 +389,51 @@ function CheckoutForm() {
               Pedido mínimo: {formatBRL(pedidoMinimo)} — faltam {formatBRL(pedidoMinimo - total)}
             </Text>
           </View>
+        )}
+      </View>
+
+      <Text style={styles.sectionTitle}>Cupom de desconto</Text>
+      <View style={styles.card}>
+        {cupomAplicado ? (
+          <View style={styles.cupomAplicado}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cupomAplicadoCodigo}>{cupomAplicado}</Text>
+              <Text style={styles.cupomAplicadoDesconto}>- {formatBRL(desconto)}</Text>
+            </View>
+            <TouchableOpacity onPress={handleRemoverCupom} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={22} color="#888" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={styles.cupomRow}>
+              <TextInput
+                style={[styles.input, styles.cupomInput]}
+                placeholderTextColor="#aaa"
+                placeholder="Código do cupom"
+                value={cupomInput}
+                onChangeText={(v) => { setCupomInput(v); setCupomErro(null); }}
+                autoCapitalize="characters"
+                returnKeyType="done"
+                onSubmitEditing={handleAplicarCupom}
+              />
+              <TouchableOpacity
+                style={[styles.cupomButton, (!cupomInput.trim() || isValidandoCupom) && styles.cupomButtonDisabled]}
+                onPress={handleAplicarCupom}
+                disabled={!cupomInput.trim() || isValidandoCupom}
+                activeOpacity={0.8}
+              >
+                {isValidandoCupom ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.cupomButtonText}>Aplicar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            {cupomErro ? (
+              <Text style={styles.cupomErro}>{cupomErro}</Text>
+            ) : null}
+          </>
         )}
       </View>
 
@@ -1225,5 +1307,57 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 14,
     fontWeight: "600",
+  },
+  cupomRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  cupomInput: {
+    flex: 1,
+    marginTop: 0,
+    letterSpacing: 1,
+  },
+  cupomButton: {
+    backgroundColor: BRAND_COLOR,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 80,
+  },
+  cupomButtonDisabled: {
+    opacity: 0.5,
+  },
+  cupomButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  cupomErro: {
+    color: "#e63946",
+    fontSize: 13,
+    marginTop: 8,
+  },
+  cupomAplicado: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0faf2",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2a9d3f",
+    padding: 12,
+  },
+  cupomAplicadoCodigo: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2a9d3f",
+    letterSpacing: 1,
+  },
+  cupomAplicadoDesconto: {
+    fontSize: 13,
+    color: "#2a9d3f",
+    marginTop: 2,
   },
 });

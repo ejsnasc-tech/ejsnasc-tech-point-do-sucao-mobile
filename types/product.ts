@@ -101,6 +101,8 @@ export type CreatePedidoPayload = {
   troco_para?: number;
   subtotal: number;
   taxa_entrega: number;
+  desconto?: number;
+  cupom_codigo?: string;
   total: number;
   itens: PedidoItem[];
 };
