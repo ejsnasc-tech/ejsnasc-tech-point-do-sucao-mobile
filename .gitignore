@@ -21,3 +21,5 @@ yarn-error.*
 
 expo-env.d.ts
 # @end expo-cli
+.aider*
+google-service-account.json
