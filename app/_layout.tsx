@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
-import { requestNotificationPermissions } from "@/lib/notifications";
+import { requestNotificationPermissions, getAndRegisterPushToken } from "@/lib/notifications";
 import { BRAND_COLOR } from "@/constants/categories";
 
 function InnerLayout() {
@@ -12,9 +12,11 @@ function InnerLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Solicitar permissão de notificação ao abrir o app
+  // Solicita permissão e registra push token ao abrir o app
   useEffect(() => {
-    requestNotificationPermissions();
+    requestNotificationPermissions().then((granted) => {
+      if (granted) getAndRegisterPushToken();
+    });
   }, []);
 
   useEffect(() => {

@@ -2,6 +2,9 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform, Alert } from "react-native";
 import type { PedidoStatus } from "@/types/product";
+import { API_BASE_URL } from "@/lib/api";
+
+const EAS_PROJECT_ID = "680247b6-a6d5-44a7-804c-5cb5f2ab583c";
 
 // Detecta se está rodando no Expo Go (notificações push não funcionam no Expo Go SDK 53+)
 const isExpoGo = Constants.appOwnership === "expo";
@@ -88,6 +91,27 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   } catch (err) {
     console.log("[Notif] Erro ao solicitar permissões:", err);
     return false;
+  }
+}
+
+export async function getAndRegisterPushToken(telefone?: string): Promise<void> {
+  if (!Notifications) return;
+  if (!Device.isDevice) return;
+
+  try {
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId: EAS_PROJECT_ID,
+    });
+
+    await fetch(`${API_BASE_URL}/api/push-tokens`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, plataforma: Platform.OS, telefone }),
+    });
+
+    console.log("[Notif] Push token registrado:", token);
+  } catch (err) {
+    console.log("[Notif] Erro ao registrar push token:", err);
   }
 }
 
