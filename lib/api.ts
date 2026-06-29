@@ -68,6 +68,15 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    // Sessão expirada: limpa dados locais para forçar novo login na próxima abertura
+    if (response.status === 401) {
+      await AsyncStorage.multiRemove([
+        SESSION_KEY,
+        SESSION_TOKEN_KEY,
+        "@pointdosucao:auth",
+        "@pointdosucao:cliente_info",
+      ]);
+    }
     let msg = `Erro na requisição: ${response.status}`;
     try {
       const body = await response.json();
@@ -85,7 +94,7 @@ export async function getProducts(): Promise<Product[]> {
 
   return products.map((product) => ({
     ...product,
-    img: normalizeImageUrl(product.img, cacheBuster),
+    img: normalizeImageUrl(product.img),
   }));
 }
 
@@ -95,7 +104,7 @@ export async function getCategories(): Promise<ApiCategory[]> {
 
   return categories.map((category) => ({
     ...category,
-    imagem: category.imagem ? normalizeImageUrl(category.imagem, cacheBuster) : category.imagem,
+    imagem: category.imagem ? normalizeImageUrl(category.imagem) : category.imagem,
   }));
 }
 

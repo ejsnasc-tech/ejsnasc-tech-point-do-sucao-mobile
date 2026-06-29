@@ -72,6 +72,13 @@ export default function LoginScreen() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Visibilidade de senha
+  const [showLoginSenha, setShowLoginSenha] = useState(false);
+  const [showSenha, setShowSenha] = useState(false);
+  const [showConfirmarSenha, setShowConfirmarSenha] = useState(false);
+  const [showForgotNova, setShowForgotNova] = useState(false);
+  const [showForgotConfirmar, setShowForgotConfirmar] = useState(false);
+
   // Verification step
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -350,8 +357,8 @@ export default function LoginScreen() {
         setForgotCode("");
         setForgotNewPassword("");
         setForgotConfirmPassword("");
-      } catch {
-        Alert.alert("Erro", "Código inválido ou expirado. Tente novamente.");
+      } catch (err: any) {
+        Alert.alert("Erro", err?.message || "Código inválido ou expirado. Tente novamente.");
       } finally {
         setIsSubmitting(false);
       }
@@ -441,24 +448,34 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <Text style={styles.label}>Nova Senha</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholderTextColor="#aaa"
-                  placeholder="Mínimo 6 caracteres"
-                  value={forgotNewPassword}
-                  onChangeText={setForgotNewPassword}
-                  secureTextEntry
-                />
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholderTextColor="#aaa"
+                    placeholder="Mínimo 6 caracteres"
+                    value={forgotNewPassword}
+                    onChangeText={setForgotNewPassword}
+                    secureTextEntry={!showForgotNova}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowForgotNova((v) => !v)}>
+                    <Ionicons name={showForgotNova ? "eye-off" : "eye"} size={22} color="#888" />
+                  </TouchableOpacity>
+                </View>
 
                 <Text style={styles.label}>Confirmar Nova Senha</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholderTextColor="#aaa"
-                  placeholder="Repita a nova senha"
-                  value={forgotConfirmPassword}
-                  onChangeText={setForgotConfirmPassword}
-                  secureTextEntry
-                />
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholderTextColor="#aaa"
+                    placeholder="Repita a nova senha"
+                    value={forgotConfirmPassword}
+                    onChangeText={setForgotConfirmPassword}
+                    secureTextEntry={!showForgotConfirmar}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowForgotConfirmar((v) => !v)}>
+                    <Ionicons name={showForgotConfirmar ? "eye-off" : "eye"} size={22} color="#888" />
+                  </TouchableOpacity>
+                </View>
               </>
             )}
 
@@ -539,15 +556,20 @@ export default function LoginScreen() {
             />
 
             <Text style={styles.label}>Senha</Text>
-            <TextInput
-              style={styles.input}
-              placeholderTextColor="#aaa"
-              placeholder="Sua senha"
-              value={loginSenha}
-              onChangeText={setLoginSenha}
-              secureTextEntry
-              returnKeyType="done"
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholderTextColor="#aaa"
+                placeholder="Sua senha"
+                value={loginSenha}
+                onChangeText={setLoginSenha}
+                secureTextEntry={!showLoginSenha}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowLoginSenha((v) => !v)}>
+                <Ionicons name={showLoginSenha ? "eye-off" : "eye"} size={22} color="#888" />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={styles.rememberRow}
@@ -685,15 +707,20 @@ export default function LoginScreen() {
           )}
 
           <Text style={styles.label}>Senha</Text>
-          <TextInput
-            style={[styles.input, hasFieldError("senha") && styles.inputError]}
-            placeholderTextColor="#aaa"
-            placeholder="Mínimo 6 caracteres"
-            value={senha}
-            onChangeText={setSenha}
-            secureTextEntry
-            returnKeyType="next"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput, hasFieldError("senha") && styles.inputError]}
+              placeholderTextColor="#aaa"
+              placeholder="Mínimo 6 caracteres"
+              value={senha}
+              onChangeText={setSenha}
+              secureTextEntry={!showSenha}
+              returnKeyType="next"
+            />
+            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowSenha((v) => !v)}>
+              <Ionicons name={showSenha ? "eye-off" : "eye"} size={22} color="#888" />
+            </TouchableOpacity>
+          </View>
           {senha.length > 0 && (
             <Text style={[styles.strengthHint, { color: passwordStrength.color }]}>
               {passwordStrength.label}
@@ -701,15 +728,20 @@ export default function LoginScreen() {
           )}
 
           <Text style={styles.label}>Confirmar Senha</Text>
-          <TextInput
-            style={[styles.input, hasFieldError("confirmarSenha") && styles.inputError]}
-            placeholderTextColor="#aaa"
-            placeholder="Repita a senha"
-            value={confirmarSenha}
-            onChangeText={setConfirmarSenha}
-            secureTextEntry
-            returnKeyType="next"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput, hasFieldError("confirmarSenha") && styles.inputError]}
+              placeholderTextColor="#aaa"
+              placeholder="Repita a senha"
+              value={confirmarSenha}
+              onChangeText={setConfirmarSenha}
+              secureTextEntry={!showConfirmarSenha}
+              returnKeyType="next"
+            />
+            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmarSenha((v) => !v)}>
+              <Ionicons name={showConfirmarSenha ? "eye-off" : "eye"} size={22} color="#888" />
+            </TouchableOpacity>
+          </View>
           {hasFieldError("confirmarSenha") && (
             <Text style={styles.errorHint}>
               {!confirmarSenha
@@ -1079,5 +1111,19 @@ const styles = StyleSheet.create({
     color: BRAND_COLOR,
     fontSize: 14,
     fontWeight: "600",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeBtn: {
+    position: "absolute",
+    right: 12,
+    height: "100%",
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
 });
