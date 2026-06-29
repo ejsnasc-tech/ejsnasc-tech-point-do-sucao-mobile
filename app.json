@@ -2,7 +2,7 @@
   "expo": {
     "name": "Point do Sucão",
     "slug": "point-do-sucao",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pointdosucao.mobile",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
@@ -35,7 +35,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.pointdosucao.mobile",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
