@@ -34,7 +34,7 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
+        "track": "alpha"
       },
       "ios": {
         "appleId": "edu31nasc@icloud.com",
