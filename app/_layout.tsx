@@ -12,12 +12,13 @@ function InnerLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Solicita permissão e registra push token ao abrir o app
+  // Solicita permissão e registra push token; re-registra ao fazer login para associar o telefone
   useEffect(() => {
+    if (isLoading) return;
     requestNotificationPermissions().then((granted) => {
-      if (granted) getAndRegisterPushToken();
+      if (granted) getAndRegisterPushToken(user?.telefone);
     });
-  }, []);
+  }, [isLoading, user?.telefone]);
 
   useEffect(() => {
     if (isLoading) return;
