@@ -3,6 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const API_BASE_URL = "https://pointdosucao.com.br";
 
+export class AuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
 const SESSION_KEY = "@pointdosucao:session_cookie";
 const SESSION_TOKEN_KEY = "@pointdosucao:session_token";
 const MOBILE_API_KEY = "AEF70E09F29A072211FCCB99D3A911BF3911EF61";
@@ -82,6 +89,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       const body = await response.json();
       msg = body.error || body.message || msg;
     } catch {}
+    if (response.status === 401) throw new AuthError(msg);
     throw new Error(msg);
   }
 

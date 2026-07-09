@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes, validarCupom } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes, validarCupom, AuthError } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
@@ -52,7 +52,7 @@ export default function CheckoutScreen() {
 function CheckoutForm() {
   const router = useRouter();
   const { cart, total, clearCart, removeItem, adjustQuantity } = useCart();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
 
   const [nome, setNome] = useState(user?.nome ?? "");
   const [telefone, setTelefone] = useState(user?.telefone ?? "");
@@ -211,6 +211,10 @@ function CheckoutForm() {
       return;
     }
 
+    // Recalcula no momento do envio para evitar valor desatualizado de taxa
+    const submitTaxa = isRetirada ? 0 : (activeBairro?.taxa_entrega ?? 0);
+    const submitTotal = Math.max(0, total + submitTaxa - desconto);
+
     setIsSubmitting(true);
     try {
       const storeStatus = await getStoreStatus();
@@ -253,10 +257,10 @@ function CheckoutForm() {
             ? parseFloat(trocoPara)
             : undefined,
         subtotal: total,
-        taxa_entrega: taxaEntrega,
+        taxa_entrega: submitTaxa,
         desconto: desconto > 0 ? desconto : undefined,
         cupom_codigo: cupomAplicado ?? undefined,
-        total: totalComTaxa,
+        total: submitTotal,
         itens: cart.map((item) => ({
           produto_id: item.id,
           nome_produto: item.variacao_label ? `${item.nome} (${item.variacao_label})` : item.nome,
@@ -296,10 +300,19 @@ function CheckoutForm() {
         ]
       );
     } catch (err: any) {
-      Alert.alert(
-        "Erro",
-        err?.message || "Não foi possível enviar seu pedido. Verifique sua conexão e tente novamente."
-      );
+      if (err instanceof AuthError) {
+        await logout();
+        Alert.alert(
+          "Sessão expirada",
+          "Seu login expirou. Entre novamente para continuar.",
+          [{ text: "Fazer login", onPress: () => { router.dismissAll(); router.replace("/login"); } }]
+        );
+      } else {
+        Alert.alert(
+          "Erro",
+          err?.message || "Não foi possível enviar seu pedido. Verifique sua conexão e tente novamente."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
