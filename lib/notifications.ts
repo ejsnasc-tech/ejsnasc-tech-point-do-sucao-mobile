@@ -95,35 +95,21 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 export async function getAndRegisterPushToken(telefone?: string): Promise<void> {
-  if (!Notifications) {
-    Alert.alert("Push Debug", "Notifications module não carregado (Expo Go?)");
-    return;
-  }
-  if (!Device.isDevice) {
-    Alert.alert("Push Debug", "Não é dispositivo real (simulador)");
-    return;
-  }
+  if (!Notifications || !Device.isDevice) return;
 
   try {
     const { data: token } = await Notifications.getExpoPushTokenAsync({
       projectId: EAS_PROJECT_ID,
     });
 
-    const res = await fetch(`${API_BASE_URL}/api/push-tokens`, {
+    await fetch(`${API_BASE_URL}/api/push-tokens`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, plataforma: Platform.OS, telefone }),
     });
 
-    if (res.ok) {
-      Alert.alert("Push Debug ✓", `Token registrado!\n\n${token.slice(0, 40)}...`);
-    } else {
-      Alert.alert("Push Debug ✗", `API retornou ${res.status}`);
-    }
-
     console.log("[Notif] Push token registrado:", token);
   } catch (err) {
-    Alert.alert("Push Debug ✗", `Erro: ${String(err)}`);
     console.log("[Notif] Erro ao registrar push token:", err);
   }
 }
