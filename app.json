@@ -2,7 +2,7 @@
   "expo": {
     "name": "Point do Sucão",
     "slug": "point-do-sucao",
-    "version": "1.1.5",
+    "version": "1.1.6",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -35,6 +35,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.pointdosucao.mobile",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 5,
       "permissions": [
         "android.permission.INTERNET",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "64032922418",
+    "project_id": "point-do-sucao-3882a",
+    "storage_bucket": "point-do-sucao-3882a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:64032922418:android:818d179f5f0bc2a6e8152b",
+        "android_client_info": {
+          "package_name": "com.pointdosucao.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0BNPbAKZO3mdDjSX0_Ghm97USH1N5a1I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
