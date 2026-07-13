@@ -2,7 +2,7 @@
   "expo": {
     "name": "Point do Sucão",
     "slug": "point-do-sucao",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pointdosucao.mobile",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
