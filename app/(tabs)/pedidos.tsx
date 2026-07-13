@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   FlatList,
@@ -6,12 +6,15 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useOrders } from "./_layout";
 import { useAuth } from "@/hooks/useAuth";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { LoginGate } from "@/components/LoginGate";
+import { confirmarRecebimento } from "@/lib/api";
 import type { Pedido } from "@/types/product";
 import { BRAND_COLOR } from "@/constants/categories";
 
@@ -24,12 +27,45 @@ const STATUS_ICON: Record<string, string> = {
   pendente: "🕐",
   confirmado: "✅",
   em_preparo: "👨‍🍳",
-  pronto: "🎉",
+  preparando: "👨‍🍳",
+  pronto: "🚴",
+  entregando: "🚴",
   entregue: "🏠",
   cancelado: "❌",
 };
 
-function PedidoCard({ pedido }: { pedido: Pedido }) {
+function PedidoCard({ pedido, onConfirmed }: { pedido: Pedido; onConfirmed: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+
+  const handleConfirmar = () => {
+    const isDelivery = !!pedido.endereco_entrega;
+    const acao = isDelivery ? "recebimento" : "retirada";
+    Alert.alert(
+      "Confirmar " + (isDelivery ? "Recebimento" : "Retirada"),
+      `Confirma que você ${isDelivery ? "recebeu" : "retirou"} o pedido #${pedido.id}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          onPress: async () => {
+            setConfirming(true);
+            try {
+              await confirmarRecebimento(pedido.id);
+              onConfirmed();
+            } catch {
+              Alert.alert("Erro", `Não foi possível confirmar o ${acao}. Tente novamente.`);
+            } finally {
+              setConfirming(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const showConfirmButton =
+    pedido.status === "pronto" || pedido.status === "entregando";
+
   return (
     <View style={styles.card}>
       {/* Status strip */}
@@ -74,10 +110,43 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
             ? `📍 ${pedido.endereco_entrega}`
             : "🏪 Retirada no local"}
         </Text>
+
+        {pedido.subtotal != null && (
+          <>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Subtotal</Text>
+              <Text style={styles.breakdownValue}>{formatBRL(pedido.subtotal)}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Taxa de entrega</Text>
+              <Text style={styles.breakdownValue}>
+                {pedido.taxa_entrega ? formatBRL(pedido.taxa_entrega) : "Grátis"}
+              </Text>
+            </View>
+          </>
+        )}
+
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>{formatBRL(pedido.total)}</Text>
         </View>
+
+        {showConfirmButton && (
+          <TouchableOpacity
+            style={[styles.confirmButton, confirming && styles.confirmButtonDisabled]}
+            onPress={handleConfirmar}
+            disabled={confirming}
+            activeOpacity={0.8}
+          >
+            {confirming ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.confirmButtonText}>
+                {pedido.endereco_entrega ? "✓ Confirmar Recebimento" : "✓ Confirmar Retirada"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -140,7 +209,7 @@ export default function PedidosScreen() {
       <FlatList
         data={orders}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <PedidoCard pedido={item} />}
+        renderItem={({ item }) => <PedidoCard pedido={item} onConfirmed={refetch} />}
         ListHeaderComponent={<ListHeader count={orders.length} />}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -284,6 +353,35 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
     color: BRAND_COLOR,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  breakdownLabel: {
+    fontSize: 13,
+    color: "#888",
+  },
+  breakdownValue: {
+    fontSize: 13,
+    color: "#555",
+  },
+  confirmButton: {
+    backgroundColor: "#28a745",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.6,
+  },
+  confirmButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   // Loading centered

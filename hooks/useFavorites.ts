@@ -1,9 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FAVORITES_KEY = "@pointdosucao:favorites";
 
-export function useFavorites() {
+type FavoritesContextType = {
+  favorites: number[];
+  toggleFavorite: (productId: number) => void;
+  isFavorite: (productId: number) => boolean;
+};
+
+const FavoritesContext = createContext<FavoritesContextType | null>(null);
+
+export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<number[]>([]);
 
   useEffect(() => {
@@ -18,25 +26,30 @@ export function useFavorites() {
     });
   }, []);
 
-  const persist = useCallback(async (ids: number[]) => {
-    setFavorites(ids);
-    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
+  const toggleFavorite = useCallback((productId: number) => {
+    setFavorites((prev) => {
+      const updated = prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId];
+      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      return updated;
+    });
   }, []);
-
-  const toggleFavorite = useCallback(
-    async (productId: number) => {
-      const updated = favorites.includes(productId)
-        ? favorites.filter((id) => id !== productId)
-        : [...favorites, productId];
-      await persist(updated);
-    },
-    [favorites, persist]
-  );
 
   const isFavorite = useCallback(
     (productId: number): boolean => favorites.includes(productId),
     [favorites]
   );
 
-  return { favorites, toggleFavorite, isFavorite };
+  return React.createElement(
+    FavoritesContext.Provider,
+    { value: { favorites, toggleFavorite, isFavorite } },
+    children
+  );
+}
+
+export function useFavorites() {
+  const ctx = useContext(FavoritesContext);
+  if (!ctx) throw new Error("useFavorites must be used within FavoritesProvider");
+  return ctx;
 }

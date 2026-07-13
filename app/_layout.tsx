@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
+import { FavoritesProvider } from "@/hooks/useFavorites";
 import { requestNotificationPermissions, getAndRegisterPushToken } from "@/lib/notifications";
 import { BRAND_COLOR } from "@/constants/categories";
 
@@ -75,7 +76,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <CartProvider>
-        <InnerLayout />
+        <FavoritesProvider>
+          <InnerLayout />
+        </FavoritesProvider>
       </CartProvider>
     </AuthProvider>
   );

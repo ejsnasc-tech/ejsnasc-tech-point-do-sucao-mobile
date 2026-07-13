@@ -51,7 +51,9 @@ export type PedidoStatus =
   | "pendente"
   | "confirmado"
   | "em_preparo"
+  | "preparando"
   | "pronto"
+  | "entregando"
   | "entregue"
   | "cancelado";
 

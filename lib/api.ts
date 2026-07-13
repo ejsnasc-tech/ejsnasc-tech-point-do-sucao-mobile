@@ -283,6 +283,10 @@ export async function validarCupom(
   }
 }
 
+export async function confirmarRecebimento(pedidoId: number): Promise<void> {
+  await apiFetch(`/api/pedidos/${pedidoId}/confirmar-recebimento`, { method: "POST" });
+}
+
 export async function deleteAccount(): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>("/api/client/delete-account", {
     method: "DELETE",

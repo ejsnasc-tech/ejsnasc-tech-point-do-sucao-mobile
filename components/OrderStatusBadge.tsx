@@ -10,7 +10,9 @@ const STATUS_CONFIG: Record<
   pendente: { label: "Pendente", backgroundColor: "#fff3cd", color: "#856404" },
   confirmado: { label: "Confirmado", backgroundColor: "#cce5ff", color: "#004085" },
   em_preparo: { label: "Em Preparo", backgroundColor: "#d4edda", color: "#155724" },
-  pronto: { label: "Pronto", backgroundColor: "#d1ecf1", color: "#0c5460" },
+  preparando: { label: "Em Preparo", backgroundColor: "#d4edda", color: "#155724" },
+  pronto: { label: "Saiu para entrega", backgroundColor: "#d1ecf1", color: "#0c5460" },
+  entregando: { label: "Saiu para entrega", backgroundColor: "#d1ecf1", color: "#0c5460" },
   entregue: { label: "Entregue", backgroundColor: "#d4edda", color: "#155724" },
   cancelado: { label: "Cancelado", backgroundColor: "#f8d7da", color: "#721c24" },
 };
