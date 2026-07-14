@@ -91,6 +91,7 @@ export type Pedido = {
 export type CreatePedidoPayload = {
   cliente_nome: string;
   cliente_telefone: string;
+  tipo_entrega?: "entrega" | "retirada";
   endereco_entrega?: string;
   rua?: string;
   numero?: string;

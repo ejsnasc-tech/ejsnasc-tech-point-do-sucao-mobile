@@ -241,6 +241,7 @@ function CheckoutForm() {
       const payload = {
         cliente_nome: nome.trim(),
         cliente_telefone: telefone.trim(),
+        tipo_entrega: isRetirada ? "retirada" as const : "entrega" as const,
         endereco_entrega: enderecoEntrega,
         rua: addrRua,
         numero: addrNumero,
