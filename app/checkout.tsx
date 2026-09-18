@@ -277,10 +277,10 @@ function CheckoutForm() {
       await updateUser({
         nome: nome.trim(),
         telefone: telefone.trim(),
-        rua: isRetirada ? user?.rua : rua.trim(),
-        numero: isRetirada ? user?.numero : numero.trim(),
-        bairro: isRetirada ? user?.bairro : bairroSelecionado?.nome ?? "",
-        referencia: isRetirada ? user?.referencia : referencia.trim(),
+        rua: isRetirada ? user?.rua : addrRua,
+        numero: isRetirada ? user?.numero : addrNumero,
+        bairro: isRetirada ? user?.bairro : addrBairro,
+        referencia: isRetirada ? user?.referencia : (addrReferencia ?? ""),
       });
       console.log("[Checkout] Dados do cliente salvos");
 
@@ -294,8 +294,16 @@ function CheckoutForm() {
           {
             text: "Ver Pedidos",
             onPress: () => {
-              router.dismissAll();
-              router.replace("/(tabs)/pedidos");
+              try {
+                router.dismissAll();
+              } catch (navErr) {
+                console.warn("[Checkout] dismissAll falhou:", navErr);
+              }
+              try {
+                router.replace("/(tabs)/pedidos");
+              } catch (navErr) {
+                console.warn("[Checkout] replace falhou:", navErr);
+              }
             },
           },
         ]
