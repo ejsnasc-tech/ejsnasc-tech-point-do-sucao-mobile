@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { createPedido, getBairros, getEnderecos, createEndereco, getStoreStatus, getConfiguracoes, validarCupom, AuthError } from "@/lib/api";
+import { createPedido, getBairros, getEnderecos, createEndereco, deleteEndereco, getStoreStatus, getConfiguracoes, validarCupom, AuthError } from "@/lib/api";
 import { BRAND_COLOR } from "@/constants/categories";
 import { LoginGate } from "@/components/LoginGate";
 import type { Bairro, EnderecoSalvo } from "@/types/product";
@@ -92,9 +92,24 @@ function CheckoutForm() {
   const [showNovoBairroModal, setShowNovoBairroModal] = useState(false);
   const [novoBairroSearch, setNovoBairroSearch] = useState("");
   const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [deletingEnderecoId, setDeletingEnderecoId] = useState<number | null>(null);
   const [pedidoMinimo, setPedidoMinimo] = useState(0);
 
-  const activeBairro = enderecoSelecionado
+  const handleDeleteEndereco = useCallback(async (id: number) => {
+    if (deletingEnderecoId) return;
+    setDeletingEnderecoId(id);
+    try {
+      await deleteEndereco(id);
+      setEnderecosSalvos((prev) => prev.filter((e) => e.id !== id));
+      setEnderecoSelecionado((prev) => (prev?.id === id ? null : prev));
+    } catch (err: any) {
+      Alert.alert("Erro", err?.message || "Não foi possível excluir o endereço.");
+    } finally {
+      setDeletingEnderecoId(null);
+    }
+  }, [deletingEnderecoId]);
+
+  const activeBairro = enderecoSelecionado?.bairro
     ? bairros.find((b) => b.nome.toLowerCase() === enderecoSelecionado.bairro.toLowerCase()) ?? bairroSelecionado
     : bairroSelecionado;
   const taxaEntrega = isRetirada ? 0 : (activeBairro?.taxa_entrega ?? 0);
@@ -513,30 +528,47 @@ function CheckoutForm() {
               <>
                 <Text style={styles.savedAddressTitle}>ENDEREÇOS SALVOS</Text>
                 {enderecosSalvos.map((addr) => (
-                  <TouchableOpacity
+                  <View
                     key={addr.id}
                     style={[
                       styles.savedAddressCard,
+                      styles.savedAddressCardRow,
                       enderecoSelecionado?.id === addr.id && styles.savedAddressCardSelected,
                     ]}
-                    onPress={() => {
-                      setEnderecoSelecionado(addr);
-                      setShowNovoEndereco(false);
-                    }}
-                    activeOpacity={0.7}
                   >
-                    <Text style={styles.savedAddressName}>
-                      {addr.rua}, {addr.numero}
-                    </Text>
-                    <Text style={styles.savedAddressDetail}>
-                      {addr.bairro}{addr.cidade ? ` - ${addr.cidade}` : ""}
-                    </Text>
-                    {addr.is_default === 1 && (
-                      <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultBadgeText}>Padrão</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.savedAddressCardContent}
+                      onPress={() => {
+                        setEnderecoSelecionado(addr);
+                        setShowNovoEndereco(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.savedAddressName}>
+                        {addr.rua}, {addr.numero}
+                      </Text>
+                      <Text style={styles.savedAddressDetail}>
+                        {addr.bairro}{addr.cidade ? ` - ${addr.cidade}` : ""}
+                      </Text>
+                      {addr.is_default === 1 && (
+                        <View style={styles.defaultBadge}>
+                          <Text style={styles.defaultBadgeText}>Padrão</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteEndereco(addr.id)}
+                      disabled={deletingEnderecoId === addr.id}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.deleteAddressButton}
+                    >
+                      {deletingEnderecoId === addr.id ? (
+                        <ActivityIndicator size="small" color="#999" />
+                      ) : (
+                        <Ionicons name="trash-outline" size={20} color="#999" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </>
             )}
@@ -1255,6 +1287,19 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 8,
     backgroundColor: "#fafafa",
+  },
+  savedAddressCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingRight: 10,
+  },
+  savedAddressCardContent: {
+    flex: 1,
+  },
+  deleteAddressButton: {
+    padding: 6,
+    marginLeft: 8,
   },
   savedAddressCardSelected: {
     borderColor: BRAND_COLOR,

@@ -254,6 +254,13 @@ export async function createEndereco(payload: {
   });
 }
 
+export async function deleteEndereco(id: number): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>("/api/enderecos", {
+    method: "DELETE",
+    body: JSON.stringify({ id }),
+  });
+}
+
 export async function clearSession(): Promise<void> {
   await Promise.all([
     AsyncStorage.removeItem(SESSION_KEY),
