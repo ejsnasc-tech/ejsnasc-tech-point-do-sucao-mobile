@@ -29,7 +29,8 @@ export function VariacaoModal({ product, visible, onClose }: Props) {
   const { addVariacaoItem } = useCart();
   const [variacoes, setVariacoes] = useState<Variacao[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selections, setSelections] = useState<Record<number, Set<number>>>({});
+  // selections[variacaoId] = Map<opcaoId, quantidade>
+  const [selections, setSelections] = useState<Record<number, Map<number, number>>>({});
 
   useEffect(() => {
     if (!visible || !product) return;
@@ -41,32 +42,49 @@ export function VariacaoModal({ product, visible, onClose }: Props) {
       .finally(() => setIsLoading(false));
   }, [visible, product]);
 
+  const groupTotal = useCallback(
+    (variacaoId: number) =>
+      Array.from((selections[variacaoId] ?? new Map()).values()).reduce((a, b) => a + b, 0),
+    [selections]
+  );
+
+  // Single-choice groups (qtd_maxima === 1) keep the old tap-to-select radio behavior.
   const toggleOption = useCallback((variacao: Variacao, opcao: OpcaoVariacao) => {
     setSelections((prev) => {
-      const current = new Set(prev[variacao.id] ?? []);
-      if (current.has(opcao.id)) {
-        current.delete(opcao.id);
-      } else {
-        if (variacao.qtd_maxima === 1) {
-          current.clear();
-        }
-        if (current.size < variacao.qtd_maxima) {
-          current.add(opcao.id);
-        }
-      }
+      const current = new Map(prev[variacao.id] ?? []);
+      const already = (current.get(opcao.id) ?? 0) > 0;
+      current.clear();
+      if (!already) current.set(opcao.id, 1);
       return { ...prev, [variacao.id]: current };
     });
   }, []);
 
-  const isValid = variacoes.every((v) => (selections[v.id]?.size ?? 0) >= v.qtd_minima);
+  // Multi-choice groups (qtd_maxima > 1) use a per-option quantity stepper,
+  // so the same option (ex: "Pastel de Carne") can be picked more than once.
+  const changeQty = useCallback((variacao: Variacao, opcao: OpcaoVariacao, delta: number) => {
+    setSelections((prev) => {
+      const current = new Map(prev[variacao.id] ?? []);
+      const qty = current.get(opcao.id) ?? 0;
+      const total = Array.from(current.values()).reduce((a, b) => a + b, 0);
+
+      if (delta > 0 && total >= variacao.qtd_maxima) return prev; // max reached
+      const next = Math.max(0, qty + delta);
+      if (next === 0) current.delete(opcao.id);
+      else current.set(opcao.id, next);
+
+      return { ...prev, [variacao.id]: current };
+    });
+  }, []);
+
+  const isValid = variacoes.every((v) => groupTotal(v.id) >= v.qtd_minima);
 
   const computedPrice = (() => {
     if (!product) return 0;
     let total = product.preco;
     for (const variacao of variacoes) {
-      const selectedIds = selections[variacao.id] ?? new Set<number>();
+      const qtyById = selections[variacao.id] ?? new Map<number, number>();
       for (const opcao of variacao.opcoes) {
-        if (selectedIds.has(opcao.id)) total += opcao.preco;
+        total += opcao.preco * (qtyById.get(opcao.id) ?? 0);
       }
     }
     return total;
@@ -76,9 +94,10 @@ export function VariacaoModal({ product, visible, onClose }: Props) {
     if (!product || !isValid) return;
     const allSelected: OpcaoVariacao[] = [];
     for (const variacao of variacoes) {
-      const selectedIds = selections[variacao.id] ?? new Set<number>();
+      const qtyById = selections[variacao.id] ?? new Map<number, number>();
       for (const opcao of variacao.opcoes) {
-        if (selectedIds.has(opcao.id)) allSelected.push(opcao);
+        const qty = qtyById.get(opcao.id) ?? 0;
+        for (let i = 0; i < qty; i++) allSelected.push(opcao);
       }
     }
     const cartKey = `${product.id}_${allSelected.map((o) => o.id).sort().join("_")}`;
@@ -111,58 +130,92 @@ export function VariacaoModal({ product, visible, onClose }: Props) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scroll}
           >
-            {variacoes.map((variacao) => (
-              <View key={variacao.id} style={styles.group}>
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupName}>{variacao.nome}</Text>
-                  <Text style={[
-                    styles.groupBadge,
-                    variacao.qtd_minima > 0 ? styles.badgeRequired : styles.badgeOptional,
-                  ]}>
-                    {variacao.qtd_minima > 0 ? "Obrigatório" : "Opcional"}
-                  </Text>
-                </View>
-                {variacao.qtd_maxima > 1 && (
-                  <Text style={styles.groupSub}>Escolha até {variacao.qtd_maxima}</Text>
-                )}
+            {variacoes.map((variacao) => {
+              const isMulti = variacao.qtd_maxima > 1;
+              const total = groupTotal(variacao.id);
+              return (
+                <View key={variacao.id} style={styles.group}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupName}>{variacao.nome}</Text>
+                    <Text style={[
+                      styles.groupBadge,
+                      variacao.qtd_minima > 0 ? styles.badgeRequired : styles.badgeOptional,
+                    ]}>
+                      {variacao.qtd_minima > 0 ? "Obrigatório" : "Opcional"}
+                    </Text>
+                  </View>
+                  {isMulti && (
+                    <Text style={styles.groupSub}>{total}/{variacao.qtd_maxima} escolhidos</Text>
+                  )}
 
-                {variacao.opcoes
-                  .filter((o) => o.ativo === 1)
-                  .sort((a, b) => a.ordem - b.ordem)
-                  .map((opcao) => {
-                    const selected = selections[variacao.id]?.has(opcao.id) ?? false;
-                    const isRadio = variacao.qtd_maxima === 1;
-                    return (
-                      <TouchableOpacity
-                        key={opcao.id}
-                        style={[styles.option, selected && styles.optionSelected]}
-                        onPress={() => toggleOption(variacao, opcao)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.optionLeft}>
-                          <Text style={[styles.optionName, selected && styles.optionNameSelected]}>
-                            {opcao.nome}
-                          </Text>
-                          {opcao.preco > 0 && (
-                            <Text style={styles.optionPrice}>+ {formatBRL(opcao.preco)}</Text>
-                          )}
-                        </View>
-                        <View style={[
-                          isRadio ? styles.radio : styles.checkbox,
-                          selected && styles.controlSelected,
-                        ]}>
-                          {selected && isRadio && (
-                            <View style={styles.radioDot} />
-                          )}
-                          {selected && !isRadio && (
-                            <Ionicons name="checkmark" size={13} color="#fff" />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </View>
-            ))}
+                  {variacao.opcoes
+                    .filter((o) => o.ativo === 1)
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map((opcao) => {
+                      const qty = selections[variacao.id]?.get(opcao.id) ?? 0;
+                      const selected = qty > 0;
+
+                      if (isMulti) {
+                        return (
+                          <View
+                            key={opcao.id}
+                            style={[styles.option, selected && styles.optionSelected]}
+                          >
+                            <View style={styles.optionLeft}>
+                              <Text style={[styles.optionName, selected && styles.optionNameSelected]}>
+                                {opcao.nome}
+                              </Text>
+                              {opcao.preco > 0 && (
+                                <Text style={styles.optionPrice}>+ {formatBRL(opcao.preco)}</Text>
+                              )}
+                            </View>
+                            <View style={styles.stepper}>
+                              <TouchableOpacity
+                                onPress={() => changeQty(variacao, opcao, -1)}
+                                disabled={qty === 0}
+                                style={[styles.stepperBtn, qty === 0 && styles.stepperBtnDisabled]}
+                                hitSlop={8}
+                              >
+                                <Text style={styles.stepperBtnText}>−</Text>
+                              </TouchableOpacity>
+                              <Text style={styles.stepperQty}>{qty}</Text>
+                              <TouchableOpacity
+                                onPress={() => changeQty(variacao, opcao, 1)}
+                                disabled={total >= variacao.qtd_maxima}
+                                style={[styles.stepperBtn, styles.stepperBtnAdd, total >= variacao.qtd_maxima && styles.stepperBtnDisabled]}
+                                hitSlop={8}
+                              >
+                                <Text style={[styles.stepperBtnText, styles.stepperBtnAddText]}>+</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          key={opcao.id}
+                          style={[styles.option, selected && styles.optionSelected]}
+                          onPress={() => toggleOption(variacao, opcao)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.optionLeft}>
+                            <Text style={[styles.optionName, selected && styles.optionNameSelected]}>
+                              {opcao.nome}
+                            </Text>
+                            {opcao.preco > 0 && (
+                              <Text style={styles.optionPrice}>+ {formatBRL(opcao.preco)}</Text>
+                            )}
+                          </View>
+                          <View style={[styles.radio, selected && styles.controlSelected]}>
+                            {selected && <View style={styles.radioDot} />}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              );
+            })}
           </ScrollView>
         )}
 
@@ -299,6 +352,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     marginTop: 2,
+  },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  stepperBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#eee",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperBtnAdd: {
+    backgroundColor: BRAND_COLOR,
+  },
+  stepperBtnDisabled: {
+    opacity: 0.4,
+  },
+  stepperBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#555",
+  },
+  stepperBtnAddText: {
+    color: "#fff",
+  },
+  stepperQty: {
+    width: 16,
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a1a",
   },
   radio: {
     width: 22,
